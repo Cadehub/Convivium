@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, AlertCircle, Loader2, Utensils, Bed, ShoppingBag, Truck } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2, Utensils, Bed, Truck } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService, type CreateOrderResult } from '../../services/orders.service';
@@ -33,20 +33,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Active modes configured by management
+  // Active modes configured by management (takeaway removed)
   const activeModes = restaurantSettings?.modes_active || {
     dine_in: true,
     room_service: true,
-    takeaway: true,
-    delivery: true,
+    delivery: false,
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    // Validation
-    if (!customerName.trim() || !customerPhone.trim()) {
+    // Validation (phone is optional)
+    if (!customerName.trim()) {
       setErrorMessage(t.errorRequiredFields);
       return;
     }
@@ -71,7 +70,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     try {
       const orderPayload = {
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
+        customerPhone: customerPhone.trim() || undefined,
         orderMode,
         locationDetail: locationDetail.trim(),
         notes: notes.trim(),
@@ -162,21 +161,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </button>
               )}
 
-              {activeModes.takeaway && (
-                <button
-                  type="button"
-                  onClick={() => setOrderMode('takeaway')}
-                  className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition-all ${
-                    orderMode === 'takeaway'
-                      ? 'border-hotel-gold bg-hotel-gold/10 text-hotel-gold shadow-sm'
-                      : 'border-hotel-cardBorder bg-hotel-card text-hotel-muted hover:text-hotel-text'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>{t.modeTakeaway}</span>
-                </button>
-              )}
-
               {activeModes.delivery && (
                 <button
                   type="button"
@@ -260,11 +244,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-hotel-text mb-1">
-                {t.customerPhone} <span className="text-hotel-gold">*</span>
+                {t.customerPhone} ({t.optional})
               </label>
               <input
                 type="tel"
-                required
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder={t.customerPhonePlaceholder}

@@ -65,7 +65,7 @@ export interface Order {
   order_mode: OrderMode;
   order_origin: 'public_client' | 'staff_manual';
   customer_name: string;
-  customer_phone: string;
+  customer_phone: string | null;
   room_number: string | null;
   table_number: string | null;
   delivery_address: string | null;
@@ -120,7 +120,7 @@ export interface RestaurantSettings {
   modes_active: {
     dine_in: boolean;
     room_service: boolean;
-    takeaway: boolean;
+    takeaway?: boolean;
     delivery: boolean;
   };
   updated_at?: string;

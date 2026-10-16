@@ -285,7 +285,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   };
 
   // Toggle Order Mode
-  const handleToggleOrderMode = async (modeKey: 'dine_in' | 'room_service' | 'takeaway' | 'delivery') => {
+  const handleToggleOrderMode = async (
+    modeKey: 'dine_in' | 'room_service' | 'delivery'
+  ) => {
     if (!restaurantSettings) return;
     const current = restaurantSettings.modes_active;
     const updated = {
@@ -345,7 +347,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     return (
       o.public_reference.toLowerCase().includes(s) ||
       o.customer_name.toLowerCase().includes(s) ||
-      o.customer_phone.toLowerCase().includes(s)
+      (o.customer_phone ? o.customer_phone.toLowerCase().includes(s) : false)
     );
   });
 
@@ -585,7 +587,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                             {formatDateTime(o.created_at, language)}
                           </td>
                           <td className="py-3 px-4 font-medium text-hotel-text">
-                            {o.customer_name} ({o.customer_phone})
+                            {o.customer_name} {o.customer_phone ? `(${o.customer_phone})` : ''}
                           </td>
                           <td className="py-3 px-4 capitalize text-hotel-muted">
                             {o.order_mode}
@@ -1055,7 +1057,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                     [
                       ['dine_in', 'Consommation sur place (Restaurant)'],
                       ['room_service', 'Service en chambre'],
-                      ['takeaway', 'À emporter'],
                       ['delivery', 'Livraison extérieure'],
                     ] as const
                   ).map(([key, label]) => {

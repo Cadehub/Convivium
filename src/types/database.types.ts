@@ -177,7 +177,7 @@ export type Database = {
           access_token_hash: string
           created_at: string
           customer_name: string
-          customer_phone: string
+          customer_phone: string | null
           delivery_address: string | null
           id: string
           idempotency_key: string | null
@@ -196,7 +196,7 @@ export type Database = {
           access_token_hash: string
           created_at?: string
           customer_name: string
-          customer_phone: string
+          customer_phone?: string | null
           delivery_address?: string | null
           id?: string
           idempotency_key?: string | null
@@ -215,7 +215,7 @@ export type Database = {
           access_token_hash?: string
           created_at?: string
           customer_name?: string
-          customer_phone?: string
+          customer_phone?: string | null
           delivery_address?: string | null
           id?: string
           idempotency_key?: string | null
@@ -427,7 +427,7 @@ export type Database = {
       create_order: {
         Args: {
           p_customer_name: string
-          p_customer_phone: string
+          p_customer_phone?: string
           p_order_mode: string
           p_location_detail: string
           p_notes: string

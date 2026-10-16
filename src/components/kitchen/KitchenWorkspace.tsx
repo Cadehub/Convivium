@@ -466,9 +466,11 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                             <h4 className="text-sm font-semibold text-hotel-text mt-0.5">
                               {order.customer_name}
                             </h4>
-                            <span className="text-[11px] text-hotel-muted">
-                              {order.customer_phone}
-                            </span>
+                            {order.customer_phone && (
+                              <span className="text-[11px] text-hotel-muted block">
+                                {order.customer_phone}
+                              </span>
+                            )}
                           </div>
 
                           <div className="text-right">
