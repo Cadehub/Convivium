@@ -57,6 +57,7 @@ export interface OrderItemSnapshot {
   quantity: number;
   subtotal: number;
   special_notes: string | null;
+  image_url?: string | null;
 }
 
 export interface Order {

@@ -7,6 +7,7 @@ import type {
   PaymentStatus,
   PreparationStatus,
   MobileOperator,
+  OrderItemSnapshot,
 } from '../types';
 
 export interface CreateOrderPayload {
@@ -180,7 +181,10 @@ export const ordersService = {
           unit_price,
           quantity,
           subtotal,
-          special_notes
+          special_notes,
+          menu_items (
+            image_url
+          )
         ),
         payment_declarations (
           id,
@@ -221,10 +225,26 @@ export const ordersService = {
       throw error;
     }
 
-    // Map order_items to items
-    return ((data || []) as unknown as Array<Order & { order_items: Order['items'] }>).map((o) => ({
+    // Map order_items to items with image_url
+    interface RawOrderItem extends OrderItemSnapshot {
+      menu_items?: { image_url?: string | null } | null;
+    }
+
+    type DbOrderRow = Omit<Order, 'items' | 'order_items'> & {
+      order_items?: RawOrderItem[];
+    };
+
+    return ((data || []) as unknown as DbOrderRow[]).map((o) => ({
       ...o,
-      items: o.order_items || [],
+      items: (o.order_items || []).map((it) => ({
+        id: it.id,
+        item_name: it.item_name,
+        unit_price: it.unit_price,
+        quantity: it.quantity,
+        subtotal: it.subtotal,
+        special_notes: it.special_notes,
+        image_url: it.image_url || it.menu_items?.image_url || null,
+      })),
     }));
   },
 
