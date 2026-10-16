@@ -37,6 +37,8 @@ import type {
   PreparationStatus,
 } from '../../types';
 import { formatXAF } from '../../lib/formatters';
+import { supabase } from '../../lib/supabase';
+import { playKitchenNotificationChime } from '../../lib/sound';
 
 export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const { profile } = useAuth();
@@ -121,9 +123,46 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
   useEffect(() => {
     loadOrders();
     loadMenu();
-    // Auto-refresh orders every 30 seconds
+
+    // Supabase Realtime subscription for Kitchen Workspace
+    const kitchenRealtimeChannel = supabase
+      .channel('kitchen_operations_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            playKitchenNotificationChime();
+          }
+          loadOrders();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_declarations' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            playKitchenNotificationChime();
+          }
+          loadOrders();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_verifications' },
+        () => {
+          loadOrders();
+        }
+      )
+      .subscribe();
+
+    // Fallback polling interval every 30 seconds
     const interval = setInterval(loadOrders, 30000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(kitchenRealtimeChannel);
+    };
   }, []);
 
   // Cuisine Payment Actions Handlers

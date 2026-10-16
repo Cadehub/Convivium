@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingBag, Search, Globe, Menu as MenuIcon, X, Lock } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useCart } from '../../context/CartContext';
+import { getStoredClientOrders } from '../../lib/security';
 
 interface HeaderProps {
   activeTab: 'menu' | 'tracking';
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { language, toggleLanguage, t } = useLanguage();
   const { totalItems } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const storedOrdersCount = getStoredClientOrders().length;
 
   return (
     <header className="sticky top-0 z-40 bg-hotel-black/95 backdrop-blur-md border-b border-hotel-cardBorder shadow-lg">
@@ -77,7 +79,12 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Search className="w-4 h-4" />
-              {t.navTrack}
+              <span>{t.navTrack}</span>
+              {storedOrdersCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hotel-gold text-hotel-black">
+                  {storedOrdersCount}
+                </span>
+              )}
             </button>
           </nav>
 
@@ -150,14 +157,21 @@ export const Header: React.FC<HeaderProps> = ({
               setActiveTab('tracking');
               setMobileMenuOpen(false);
             }}
-            className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium ${
+            className={`w-full flex items-center justify-between py-2 px-3 rounded-lg text-sm font-medium ${
               activeTab === 'tracking'
                 ? 'bg-hotel-gold/10 text-hotel-gold border border-hotel-gold/20'
                 : 'text-hotel-text hover:bg-hotel-card'
             }`}
           >
-            <Search className="w-4 h-4 text-hotel-gold" />
-            {t.navTrack}
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-hotel-gold" />
+              <span>{t.navTrack}</span>
+            </div>
+            {storedOrdersCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-hotel-gold text-hotel-black">
+                {storedOrdersCount}
+              </span>
+            )}
           </button>
 
           <div className="pt-2 border-t border-hotel-cardBorder flex items-center justify-between">

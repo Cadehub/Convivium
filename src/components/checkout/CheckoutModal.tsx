@@ -5,6 +5,11 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService, type CreateOrderResult } from '../../services/orders.service';
 import type { OrderMode, RestaurantSettings } from '../../types';
 import { formatXAF } from '../../lib/formatters';
+import {
+  saveCustomerInfo,
+  getSavedCustomerInfo,
+  saveStoredClientOrder,
+} from '../../lib/security';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -22,10 +27,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const { items, subtotal, clearCart } = useCart();
   const { t } = useLanguage();
 
-  const [orderMode, setOrderMode] = useState<OrderMode>('dine_in');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [locationDetail, setLocationDetail] = useState('');
+  const savedInfo = getSavedCustomerInfo();
+
+  const [orderMode, setOrderMode] = useState<OrderMode>(
+    (savedInfo?.orderMode as OrderMode) || 'dine_in'
+  );
+  const [customerName, setCustomerName] = useState(savedInfo?.customerName || '');
+  const [customerPhone, setCustomerPhone] = useState(savedInfo?.customerPhone || '');
+  const [locationDetail, setLocationDetail] = useState(savedInfo?.locationDetail || '');
   const [notes, setNotes] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +91,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       };
 
       const result = await ordersService.createOrder(orderPayload);
+
+      // Persist customer profile for future visits
+      saveCustomerInfo({
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim() || undefined,
+        orderMode,
+        locationDetail: locationDetail.trim(),
+      });
+
+      // Persist client order in browser history so it is never lost on refresh
+      saveStoredClientOrder({
+        public_reference: result.public_reference,
+        raw_token: result.raw_token,
+        customer_name: customerName.trim(),
+        total_amount: result.total_amount,
+        created_at: new Date().toISOString(),
+        order_mode: orderMode,
+        location_detail: locationDetail.trim(),
+      });
+
       clearCart();
       onOrderCreated(result);
     } catch (err: unknown) {

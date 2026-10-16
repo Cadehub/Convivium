@@ -14,24 +14,76 @@ import { useAuth } from './context/AuthContext';
 import { useLanguage } from './i18n/LanguageContext';
 import { menuService } from './services/menu.service';
 import { settingsService } from './services/settings.service';
+import { supabase } from './lib/supabase';
 import type { MenuCategory, MenuItem, RestaurantSettings } from './types';
 import type { CreateOrderResult } from './services/orders.service';
-import { getStoredClientOrderToken } from './lib/security';
+import {
+  getStoredClientOrderToken,
+  saveActiveTrackingRef,
+  getActiveTrackingRef,
+  getLatestStoredClientOrder,
+  savePendingPaymentOrder,
+  getPendingPaymentOrder,
+  clearPendingPaymentOrder,
+} from './lib/security';
 import { UtensilsCrossed, Loader2, RefreshCw } from 'lucide-react';
 
 export function App() {
   const { user, role, signOut, isLoading: authLoading } = useAuth();
   const { t } = useLanguage();
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<'menu' | 'tracking'>('menu');
-  const [trackingReference, setTrackingReference] = useState<string | null>(null);
+  // Navigation State with localStorage persistence across page refreshes
+  const [activeTab, setActiveTabState] = useState<'menu' | 'tracking'>(() => {
+    try {
+      const saved = localStorage.getItem('convivium_active_tab_v1');
+      if (saved === 'tracking' || saved === 'menu') return saved;
+    } catch {}
+    return 'menu';
+  });
+
+  const setActiveTab = (tab: 'menu' | 'tracking') => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('convivium_active_tab_v1', tab);
+    } catch {}
+  };
+
+  // Active tracking reference persisted across reloads
+  const [trackingReference, setTrackingReferenceState] = useState<string | null>(() => {
+    try {
+      return getActiveTrackingRef() || getLatestStoredClientOrder()?.public_reference || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setTrackingReference = (ref: string | null) => {
+    setTrackingReferenceState(ref);
+    saveActiveTrackingRef(ref);
+  };
 
   // Modals
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isStaffLoginOpen, setIsStaffLoginOpen] = useState(false);
-  const [activePaymentOrder, setActivePaymentOrder] = useState<CreateOrderResult | null>(null);
+
+  // Active pending payment modal order persisted across page reloads
+  const [activePaymentOrder, setActivePaymentOrderState] = useState<CreateOrderResult | null>(() => {
+    try {
+      return getPendingPaymentOrder<CreateOrderResult>();
+    } catch {
+      return null;
+    }
+  });
+
+  const setActivePaymentOrder = (order: CreateOrderResult | null) => {
+    setActivePaymentOrderState(order);
+    if (order) {
+      savePendingPaymentOrder(order);
+    } else {
+      clearPendingPaymentOrder();
+    }
+  };
 
   // Data State
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -61,6 +113,29 @@ export function App() {
 
   useEffect(() => {
     loadPublicData();
+
+    // Real-time synchronization for public menu catalog changes
+    const menuChannel = supabase
+      .channel('public_menu_catalog_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items' },
+        () => {
+          loadPublicData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_categories' },
+        () => {
+          loadPublicData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(menuChannel);
+    };
   }, []);
 
   // Filtered Menu Items

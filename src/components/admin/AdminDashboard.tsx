@@ -33,6 +33,7 @@ import { staffService } from '../../services/staff.service';
 import { menuService } from '../../services/menu.service';
 import { uploadImageToImgBB } from '../../lib/imgbb';
 import { PaymentVerificationCard } from '../kitchen/PaymentVerificationCard';
+import { supabase } from '../../lib/supabase';
 import type {
   Order,
   PaymentMethodSetting,
@@ -130,6 +131,35 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
   useEffect(() => {
     loadData();
+
+    const adminRealtimeChannel = supabase
+      .channel('admin_dashboard_orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          ordersService.getStaffOrders().then(setOrders).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_declarations' },
+        () => {
+          ordersService.getStaffOrders().then(setOrders).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_verifications' },
+        () => {
+          ordersService.getStaffOrders().then(setOrders).catch(console.error);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(adminRealtimeChannel);
+    };
   }, []);
 
   // Category Handlers (Admin)
