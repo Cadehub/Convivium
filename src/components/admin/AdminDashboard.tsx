@@ -14,18 +14,31 @@ import {
   Sliders,
   DollarSign,
   Package,
+  Utensils,
+  FolderTree,
+  Layers,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService } from '../../services/orders.service';
 import { settingsService } from '../../services/settings.service';
 import { staffService } from '../../services/staff.service';
+import { menuService } from '../../services/menu.service';
+import { uploadImageToImgBB } from '../../lib/imgbb';
 import type {
   Order,
   PaymentMethodSetting,
   RestaurantSettings,
   StaffProfile,
   AuditLogEntry,
+  MenuCategory,
+  MenuItem,
 } from '../../types';
 import { formatXAF, formatDateTime } from '../../lib/formatters';
 
@@ -56,20 +69,57 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   // Audit Logs
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
+  // Menu & Categories State
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [menuSubTab, setMenuSubTab] = useState<'categories' | 'items'>('categories');
+
+  // Item Modal State
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [itemNameFr, setItemNameFr] = useState('');
+  const [itemNameEn, setItemNameEn] = useState('');
+  const [itemCategoryId, setItemCategoryId] = useState('');
+  const [itemType, setItemType] = useState<'dish' | 'drink'>('dish');
+  const [itemPrice, setItemPrice] = useState<number>(0);
+  const [itemImageUrl, setItemImageUrl] = useState('');
+  const [itemAvailable, setItemAvailable] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [itemSaveError, setItemSaveError] = useState<string | null>(null);
+
+  // Category Modal State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
+  const [categoryNameFr, setCategoryNameFr] = useState('');
+  const [categoryNameEn, setCategoryNameEn] = useState('');
+  const [categorySortOrder, setCategorySortOrder] = useState<number>(0);
+  const [categoryIsActive, setCategoryIsActive] = useState<boolean>(true);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
   const loadData = async () => {
     try {
-      const [allOrders, paySettings, restSettings, staffList, logs] = await Promise.all([
-        ordersService.getStaffOrders(),
-        settingsService.getAdminPaymentSettings(),
-        settingsService.getRestaurantSettings(),
-        staffService.getAllStaffProfiles(),
-        settingsService.getAuditLogs(100),
-      ]);
+      const [allOrders, paySettings, restSettings, staffList, logs, cats, items] =
+        await Promise.all([
+          ordersService.getStaffOrders(),
+          settingsService.getAdminPaymentSettings(),
+          settingsService.getRestaurantSettings(),
+          staffService.getAllStaffProfiles(),
+          settingsService.getAuditLogs(100),
+          menuService.getAllCategories(),
+          menuService.getAllMenuItems(),
+        ]);
       setOrders(allOrders);
       setPaymentSettings(paySettings);
       setRestaurantSettings(restSettings);
       setStaffProfiles(staffList);
       setAuditLogs(logs);
+      setCategories(cats);
+      setMenuItems(items);
+      if (cats.length > 0 && !itemCategoryId) {
+        setItemCategoryId(cats[0].id);
+      }
     } catch (e) {
       console.error('Error loading admin data', e);
     }
@@ -78,6 +128,148 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   useEffect(() => {
     loadData();
   }, []);
+
+  // Category Handlers (Admin)
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryNameFr('');
+    setCategoryNameEn('');
+    setCategorySortOrder(categories.length);
+    setCategoryIsActive(true);
+    setCategoryError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: MenuCategory) => {
+    setEditingCategory(cat);
+    setCategoryNameFr(cat.name_fr);
+    setCategoryNameEn(cat.name_en || '');
+    setCategorySortOrder(cat.sort_order ?? 0);
+    setCategoryIsActive(cat.is_active);
+    setCategoryError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCategoryError(null);
+
+    if (!categoryNameFr.trim()) {
+      setCategoryError(t.errorRequiredFields);
+      return;
+    }
+
+    try {
+      if (editingCategory) {
+        await menuService.updateCategory(editingCategory.id, {
+          name_fr: categoryNameFr.trim(),
+          name_en: categoryNameEn.trim() || undefined,
+          sort_order: Number(categorySortOrder) || 0,
+          is_active: categoryIsActive,
+        });
+      } else {
+        await menuService.createCategory({
+          name_fr: categoryNameFr.trim(),
+          name_en: categoryNameEn.trim() || undefined,
+          sort_order: Number(categorySortOrder) || 0,
+        });
+      }
+      setIsCategoryModalOpen(false);
+      setEditingCategory(null);
+      setCategoryNameFr('');
+      setCategoryNameEn('');
+      await loadData();
+    } catch (err: unknown) {
+      setCategoryError(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
+
+  const handleToggleCategoryActive = async (cat: MenuCategory) => {
+    try {
+      await menuService.updateCategory(cat.id, { is_active: !cat.is_active });
+      await loadData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: MenuCategory) => {
+    const itemsInCat = menuItems.filter((i) => i.category_id === cat.id);
+    if (itemsInCat.length > 0) {
+      alert(
+        `Impossible de supprimer "${cat.name_fr}" : ${itemsInCat.length} article(s) y sont rattachés.`
+      );
+      return;
+    }
+    if (!confirm(t.deleteCategoryConfirm)) return;
+
+    try {
+      await menuService.deleteCategory(cat.id);
+      await loadData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
+
+  // Menu Item Handlers (Admin)
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageUploadError(null);
+    setIsUploadingImage(true);
+
+    try {
+      const res = await uploadImageToImgBB(file);
+      if (res.success && res.url) {
+        setItemImageUrl(res.url);
+      } else {
+        setImageUploadError(res.error || 'Erreur ImgBB');
+      }
+    } catch (err: unknown) {
+      setImageUploadError(err instanceof Error ? err.message : 'Erreur ImgBB');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleSaveItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setItemSaveError(null);
+
+    if (!itemNameFr.trim() || itemPrice < 0) {
+      setItemSaveError(t.errorRequiredFields);
+      return;
+    }
+
+    try {
+      if (editingItem) {
+        await menuService.updateMenuItem(editingItem.id, {
+          name_fr: itemNameFr.trim(),
+          name_en: itemNameEn.trim() || null,
+          category_id: itemCategoryId,
+          item_type: itemType,
+          price: itemPrice,
+          image_url: itemImageUrl.trim() || null,
+          is_available: itemAvailable,
+        });
+      } else {
+        await menuService.createMenuItem({
+          name_fr: itemNameFr.trim(),
+          name_en: itemNameEn.trim() || undefined,
+          category_id: itemCategoryId,
+          item_type: itemType,
+          price: itemPrice,
+          image_url: itemImageUrl.trim() || null,
+          is_available: itemAvailable,
+        });
+      }
+      setIsItemModalOpen(false);
+      await loadData();
+    } catch (err: unknown) {
+      setItemSaveError(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
 
   // Update Payment Setting handler
   const handleSavePaymentSetting = async (
@@ -225,6 +417,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
           >
             <ClipboardList className="w-4 h-4" />
             <span>Commandes ({orders.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+              activeTab === 'menu'
+                ? 'bg-hotel-gold text-hotel-black shadow-gold-glow'
+                : 'text-hotel-muted hover:text-hotel-text bg-hotel-surface border border-hotel-cardBorder'
+            }`}
+          >
+            <Utensils className="w-4 h-4" />
+            <span>Carte & Catégories ({categories.length})</span>
           </button>
 
           <button
@@ -412,6 +616,314 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB: MENU & CATEGORIES (ADMIN) */}
+        {activeTab === 'menu' && (
+          <div className="py-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-hotel-text">
+                  Gestion de la Carte & des Catégories
+                </h3>
+                <p className="text-xs text-hotel-muted">
+                  Supervision des plats, boissons, prix en XAF et organisation des catégories.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleOpenAddCategory}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
+                >
+                  <FolderTree className="w-3.5 h-3.5 text-hotel-gold" />
+                  <span>Nouvelle Catégorie</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingItem(null);
+                    setItemNameFr('');
+                    setItemNameEn('');
+                    setItemPrice(0);
+                    setItemImageUrl('');
+                    setItemAvailable(true);
+                    setItemType('dish');
+                    setIsItemModalOpen(true);
+                  }}
+                  className="btn-gold text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Ajouter un Article</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-tabs: Catégories vs Plats & Boissons */}
+            <div className="flex items-center gap-2 border-b border-hotel-cardBorder pb-2">
+              <button
+                onClick={() => setMenuSubTab('categories')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  menuSubTab === 'categories'
+                    ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                    : 'text-hotel-muted hover:text-hotel-text bg-hotel-surface border border-hotel-cardBorder'
+                }`}
+              >
+                <FolderTree className="w-3.5 h-3.5" />
+                <span>Catégories ({categories.length})</span>
+              </button>
+              <button
+                onClick={() => setMenuSubTab('items')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  menuSubTab === 'items'
+                    ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                    : 'text-hotel-muted hover:text-hotel-text bg-hotel-surface border border-hotel-cardBorder'
+                }`}
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                <span>Plats & Boissons ({menuItems.length})</span>
+              </button>
+            </div>
+
+            {/* Subtab 1: Categories View */}
+            {menuSubTab === 'categories' && (
+              <div className="space-y-4">
+                {categories.length === 0 ? (
+                  <div className="py-16 text-center text-hotel-muted hotel-card">
+                    <FolderTree className="w-12 h-12 text-hotel-cardBorder mx-auto mb-3" />
+                    <h4 className="font-serif text-base text-hotel-text font-bold mb-1">
+                      Aucune catégorie configurée
+                    </h4>
+                    <p className="text-xs text-hotel-muted max-w-sm mx-auto mb-4">
+                      Créez des catégories pour structurer le menu de l’établissement.
+                    </p>
+                    <button
+                      onClick={handleOpenAddCategory}
+                      className="btn-gold text-xs font-bold inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Créer une catégorie</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {categories.map((cat) => {
+                      const itemsCount = menuItems.filter((i) => i.category_id === cat.id).length;
+                      return (
+                        <div
+                          key={cat.id}
+                          className="hotel-card p-4 flex flex-col justify-between border-hotel-cardBorder hover:border-hotel-gold/40 transition-colors"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2 pb-2 border-b border-hotel-cardBorder">
+                              <div>
+                                <span className="text-[10px] font-mono text-hotel-gold font-bold px-1.5 py-0.5 rounded bg-hotel-gold/10 border border-hotel-gold/20">
+                                  Ordre #{cat.sort_order ?? 0}
+                                </span>
+                                <h4 className="font-semibold text-base text-hotel-text mt-1.5">
+                                  {cat.name_fr}
+                                </h4>
+                                {cat.name_en && (
+                                  <p className="text-xs text-hotel-muted italic">
+                                    EN : {cat.name_en}
+                                  </p>
+                                )}
+                              </div>
+
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  cat.is_active
+                                    ? 'bg-green-950 text-green-300 border border-green-800'
+                                    : 'bg-red-950 text-red-300 border border-red-800'
+                                }`}
+                              >
+                                {cat.is_active ? t.categoryStatusActive : t.categoryStatusInactive}
+                              </span>
+                            </div>
+
+                            <div className="py-3 flex items-center justify-between text-xs text-hotel-muted">
+                              <span className="flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-hotel-gold" />
+                                <span>
+                                  {itemsCount} {t.categoryItemsCount.toLowerCase()}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-hotel-cardBorder flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => handleToggleCategoryActive(cat)}
+                              className={`btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1.5 ${
+                                cat.is_active ? 'text-hotel-muted' : 'text-green-400'
+                              }`}
+                            >
+                              {cat.is_active ? (
+                                <>
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                  <span>Désactiver</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Activer</span>
+                                </>
+                              )}
+                            </button>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditCategory(cat)}
+                                className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 hover:text-hotel-gold"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span>Modifier</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteCategory(cat)}
+                                className="text-hotel-muted hover:text-red-400 p-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Subtab 2: Menu Items View */}
+            {menuSubTab === 'items' && (
+              <div className="space-y-4">
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                  <button
+                    onClick={() => setSelectedCategoryFilter('all')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      selectedCategoryFilter === 'all'
+                        ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                        : 'bg-hotel-surface text-hotel-muted border border-hotel-cardBorder hover:text-hotel-text'
+                    }`}
+                  >
+                    {t.allCategories} ({menuItems.length})
+                  </button>
+                  {categories.map((c) => {
+                    const count = menuItems.filter((i) => i.category_id === c.id).length;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedCategoryFilter(c.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          selectedCategoryFilter === c.id
+                            ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                            : 'bg-hotel-surface text-hotel-muted border border-hotel-cardBorder hover:text-hotel-text'
+                        }`}
+                      >
+                        {language === 'en' && c.name_en ? c.name_en : c.name_fr} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {menuItems.filter((item) =>
+                  selectedCategoryFilter === 'all' ? true : item.category_id === selectedCategoryFilter
+                ).length === 0 ? (
+                  <div className="py-16 text-center text-hotel-muted hotel-card">
+                    <Utensils className="w-12 h-12 text-hotel-cardBorder mx-auto mb-3" />
+                    <h4 className="font-serif text-base text-hotel-text font-bold mb-1">
+                      Aucun article
+                    </h4>
+                    <p className="text-xs text-hotel-muted max-w-sm mx-auto">
+                      Ajoutez des plats ou des boissons au catalogue.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {menuItems
+                      .filter((item) =>
+                        selectedCategoryFilter === 'all' ? true : item.category_id === selectedCategoryFilter
+                      )
+                      .map((item) => (
+                        <div key={item.id} className="hotel-card p-4 flex gap-3.5 items-start">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name_fr}
+                              className="w-16 h-16 rounded-lg object-cover border border-hotel-cardBorder flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg bg-hotel-surface border border-hotel-cardBorder flex items-center justify-center text-hotel-gold/40 flex-shrink-0">
+                              <Utensils className="w-6 h-6" />
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-1">
+                              <h4 className="font-semibold text-sm text-hotel-text truncate">
+                                {item.name_fr}
+                              </h4>
+                              <button
+                                onClick={() =>
+                                  menuService
+                                    .toggleItemAvailability(item.id, !item.is_available)
+                                    .then(loadData)
+                                }
+                                title={item.is_available ? 'Rendre indisponible' : 'Rendre disponible'}
+                                className="text-hotel-muted hover:text-hotel-gold p-1"
+                              >
+                                {item.is_available ? (
+                                  <Eye className="w-4 h-4 text-green-400" />
+                                ) : (
+                                  <EyeOff className="w-4 h-4 text-red-400" />
+                                )}
+                              </button>
+                            </div>
+
+                            <span className="font-serif text-sm font-bold text-hotel-gold block mt-0.5">
+                              {formatXAF(item.price)}
+                            </span>
+
+                            <div className="mt-2 flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingItem(item);
+                                  setItemNameFr(item.name_fr);
+                                  setItemNameEn(item.name_en || '');
+                                  setItemPrice(item.price);
+                                  setItemImageUrl(item.image_url || '');
+                                  setItemAvailable(item.is_available);
+                                  setItemCategoryId(item.category_id || categories[0]?.id || '');
+                                  setItemType(item.item_type as 'dish' | 'drink');
+                                  setIsItemModalOpen(true);
+                                }}
+                                className="btn-secondary py-1 px-2 text-[10px] flex items-center gap-1"
+                              >
+                                <Edit className="w-3 h-3" />
+                                <span>Modifier</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Supprimer ${item.name_fr} ?`)) {
+                                    menuService.deleteMenuItem(item.id).then(loadData);
+                                  }
+                                }}
+                                className="text-hotel-muted hover:text-red-400 p-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -761,6 +1273,288 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 <button
                   type="button"
                   onClick={() => setIsInviteModalOpen(false)}
+                  className="btn-secondary text-xs"
+                >
+                  {t.cancel}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ITEM CREATE / EDIT MODAL (ADMIN) */}
+      {isItemModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            onClick={() => setIsItemModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-hotel-surface border border-hotel-cardBorder rounded-2xl p-6 z-10">
+            <h3 className="font-serif text-lg font-bold text-hotel-text">
+              {editingItem ? t.editItemTitle : t.addItemTitle}
+            </h3>
+
+            {itemSaveError && (
+              <div className="mt-3 p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs">
+                {itemSaveError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveItem} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.itemNameFr} <span className="text-hotel-gold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={itemNameFr}
+                  onChange={(e) => setItemNameFr(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.itemNameEn}
+                </label>
+                <input
+                  type="text"
+                  value={itemNameEn}
+                  onChange={(e) => setItemNameEn(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-hotel-text mb-1">
+                    {t.itemType}
+                  </label>
+                  <select
+                    value={itemType}
+                    onChange={(e) => setItemType(e.target.value as 'dish' | 'drink')}
+                    className="w-full px-3 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-xs focus:outline-none focus:border-hotel-gold"
+                  >
+                    <option value="dish">Plat</option>
+                    <option value="drink">Boisson</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-hotel-text mb-1">
+                    {t.itemCategory}
+                  </label>
+                  <select
+                    value={itemCategoryId}
+                    onChange={(e) => setItemCategoryId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-xs focus:outline-none focus:border-hotel-gold"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name_fr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.itemPrice}
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  step={1}
+                  value={itemPrice}
+                  onChange={(e) => setItemPrice(Math.round(Number(e.target.value) || 0))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold font-mono"
+                />
+              </div>
+
+              {/* ImgBB Image Upload */}
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.itemImage}
+                </label>
+
+                {imageUploadError && (
+                  <p className="text-[11px] text-red-400 mb-1">{imageUploadError}</p>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <label className="btn-secondary text-xs cursor-pointer flex items-center gap-1.5 py-2">
+                    {isUploadingImage ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5 text-hotel-gold" />
+                    )}
+                    <span>{t.uploadWithImgBB}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingImage}
+                      onChange={handleImageFileChange}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {itemImageUrl && (
+                    <span className="text-[11px] text-green-400 font-semibold truncate max-w-xs">
+                      {t.imageUploadedSuccess}
+                    </span>
+                  )}
+                </div>
+
+                {itemImageUrl && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={itemImageUrl}
+                      alt="Aperçu"
+                      className="w-12 h-12 rounded object-cover border border-hotel-cardBorder"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setItemImageUrl('')}
+                      className="text-[11px] text-red-400 hover:underline"
+                    >
+                      {t.removeImage}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Immediate Availability Switch */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="availCheckAdmin"
+                  checked={itemAvailable}
+                  onChange={(e) => setItemAvailable(e.target.checked)}
+                  className="rounded bg-hotel-card border-hotel-cardBorder text-hotel-gold focus:ring-0"
+                />
+                <label
+                  htmlFor="availCheckAdmin"
+                  className="text-xs text-hotel-text font-medium cursor-pointer"
+                >
+                  {t.itemAvailability}
+                </label>
+              </div>
+
+              <div className="pt-3 flex gap-2">
+                <button type="submit" className="flex-1 btn-gold py-2.5 text-xs font-bold">
+                  {t.save}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsItemModalOpen(false)}
+                  className="btn-secondary text-xs"
+                >
+                  {t.cancel}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY CREATE / EDIT MODAL (ADMIN) */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            onClick={() => {
+              setIsCategoryModalOpen(false);
+              setEditingCategory(null);
+            }}
+          />
+          <div className="relative w-full max-w-md bg-hotel-surface border border-hotel-cardBorder rounded-2xl p-6 z-10">
+            <h3 className="font-serif text-lg font-bold text-hotel-text">
+              {editingCategory ? t.editCategoryTitle : t.addCategoryTitle}
+            </h3>
+
+            {categoryError && (
+              <div className="mt-3 p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs">
+                {categoryError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCategory} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.categoryNameFr} <span className="text-hotel-gold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={categoryNameFr}
+                  onChange={(e) => setCategoryNameFr(e.target.value)}
+                  placeholder="Ex: Vins & Champagnes"
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.categoryNameEn}
+                </label>
+                <input
+                  type="text"
+                  value={categoryNameEn}
+                  onChange={(e) => setCategoryNameEn(e.target.value)}
+                  placeholder="Ex: Wines & Champagne"
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.categorySortOrder}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={categorySortOrder}
+                  onChange={(e) => setCategorySortOrder(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm font-mono focus:outline-none focus:border-hotel-gold"
+                />
+                <p className="text-[11px] text-hotel-muted mt-1">
+                  Position d’affichage sur le menu client (0 = premier).
+                </p>
+              </div>
+
+              {editingCategory && (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="adminCatActiveCheck"
+                    checked={categoryIsActive}
+                    onChange={(e) => setCategoryIsActive(e.target.checked)}
+                    className="rounded bg-hotel-card border-hotel-cardBorder text-hotel-gold focus:ring-0"
+                  />
+                  <label
+                    htmlFor="adminCatActiveCheck"
+                    className="text-xs text-hotel-text font-medium cursor-pointer"
+                  >
+                    {t.categoryActiveLabel}
+                  </label>
+                </div>
+              )}
+
+              <div className="pt-3 flex gap-2">
+                <button type="submit" className="flex-1 btn-gold py-2.5 text-xs font-bold">
+                  {t.save}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                  }}
                   className="btn-secondary text-xs"
                 >
                   {t.cancel}

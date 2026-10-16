@@ -235,9 +235,15 @@ export const translations = {
     removeImage: 'Retirer l’image',
     itemAvailability: 'Disponibilité immédiate',
     addCategoryTitle: 'Nouvelle Catégorie',
+    editCategoryTitle: 'Modifier la Catégorie',
     categoryNameFr: 'Nom de la catégorie (Français)',
     categoryNameEn: 'Nom de la catégorie (Anglais)',
     categorySortOrder: 'Ordre d’affichage',
+    categoryItemsCount: 'Articles rattachés',
+    categoryStatusActive: 'Visible sur le menu',
+    categoryStatusInactive: 'Masquée aux clients',
+    categoryActiveLabel: 'Catégorie active (visible par les clients)',
+    deleteCategoryConfirm: 'Êtes-vous sûr de vouloir supprimer cette catégorie ?',
 
     // Errors & Alerts
     errorNetwork: 'Erreur réseau. Veuillez vérifier votre connexion Internet.',
@@ -481,9 +487,15 @@ export const translations = {
     removeImage: 'Remove Image',
     itemAvailability: 'Immediate Availability',
     addCategoryTitle: 'New Category',
+    editCategoryTitle: 'Edit Category',
     categoryNameFr: 'Category Name (French)',
     categoryNameEn: 'Category Name (English)',
     categorySortOrder: 'Display Order',
+    categoryItemsCount: 'Linked Items',
+    categoryStatusActive: 'Visible on menu',
+    categoryStatusInactive: 'Hidden from customers',
+    categoryActiveLabel: 'Active category (visible to customers)',
+    deleteCategoryConfirm: 'Are you sure you want to delete this category?',
 
     // Errors & Alerts
     errorNetwork: 'Network error. Please check your internet connection.',

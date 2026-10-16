@@ -15,6 +15,8 @@ import {
   Loader2,
   Trash2,
   Upload,
+  FolderTree,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -70,10 +72,14 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const [itemSaveError, setItemSaveError] = useState<string | null>(null);
 
   // Category Form Modal
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryNameFr, setCategoryNameFr] = useState('');
   const [categoryNameEn, setCategoryNameEn] = useState('');
+  const [categorySortOrder, setCategorySortOrder] = useState<number>(0);
+  const [categoryIsActive, setCategoryIsActive] = useState<boolean>(true);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
   const loadOrders = async () => {
     setIsLoadingOrders(true);
@@ -245,7 +251,27 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
     }
   };
 
-  // Save Category
+  // Category Handlers
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryNameFr('');
+    setCategoryNameEn('');
+    setCategorySortOrder(categories.length);
+    setCategoryIsActive(true);
+    setCategoryError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: MenuCategory) => {
+    setEditingCategory(cat);
+    setCategoryNameFr(cat.name_fr);
+    setCategoryNameEn(cat.name_en || '');
+    setCategorySortOrder(cat.sort_order ?? 0);
+    setCategoryIsActive(cat.is_active);
+    setCategoryError(null);
+    setIsCategoryModalOpen(true);
+  };
+
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     setCategoryError(null);
@@ -256,16 +282,54 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
     }
 
     try {
-      await menuService.createCategory({
-        name_fr: categoryNameFr.trim(),
-        name_en: categoryNameEn.trim() || undefined,
-      });
+      if (editingCategory) {
+        await menuService.updateCategory(editingCategory.id, {
+          name_fr: categoryNameFr.trim(),
+          name_en: categoryNameEn.trim() || undefined,
+          sort_order: Number(categorySortOrder) || 0,
+          is_active: categoryIsActive,
+        });
+      } else {
+        await menuService.createCategory({
+          name_fr: categoryNameFr.trim(),
+          name_en: categoryNameEn.trim() || undefined,
+          sort_order: Number(categorySortOrder) || 0,
+        });
+      }
       setIsCategoryModalOpen(false);
+      setEditingCategory(null);
       setCategoryNameFr('');
       setCategoryNameEn('');
       await loadMenu();
     } catch (err: unknown) {
       setCategoryError(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
+
+  const handleToggleCategoryActive = async (cat: MenuCategory) => {
+    try {
+      await menuService.updateCategory(cat.id, { is_active: !cat.is_active });
+      await loadMenu();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t.errorGeneral);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: MenuCategory) => {
+    const itemsInCat = menuItems.filter((i) => i.category_id === cat.id);
+    if (itemsInCat.length > 0) {
+      alert(
+        `Impossible de supprimer la catégorie "${cat.name_fr}" : ${itemsInCat.length} article(s) y sont rattachés. Veuillez d'abord réassigner ou supprimer ces articles.`
+      );
+      return;
+    }
+    if (!confirm(t.deleteCategoryConfirm)) return;
+
+    try {
+      await menuService.deleteCategory(cat.id);
+      await loadMenu();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t.errorGeneral);
     }
   };
 
@@ -338,6 +402,18 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
           >
             <Utensils className="w-4 h-4" />
             <span>Gestion Carte ({menuItems.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+              activeTab === 'categories'
+                ? 'bg-hotel-gold text-hotel-black shadow-gold-glow'
+                : 'text-hotel-muted hover:text-hotel-text bg-hotel-surface border border-hotel-cardBorder'
+            }`}
+          >
+            <FolderTree className="w-4 h-4" />
+            <span>Gestion Catégories ({categories.length})</span>
           </button>
         </div>
 
@@ -560,7 +636,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
         {/* Tab 2: Menu Catalog Management (Dishes & Drinks) */}
         {activeTab === 'menu' && (
           <div className="py-6 space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="font-serif text-lg font-bold text-hotel-text">
                   Carte des Plats et Boissons
@@ -572,11 +648,11 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="btn-secondary text-xs"
+                  onClick={() => setActiveTab('categories')}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Nouvelle Catégorie</span>
+                  <FolderTree className="w-3.5 h-3.5 text-hotel-gold" />
+                  <span>Gérer les Catégories</span>
                 </button>
                 <button
                   onClick={() => {
@@ -589,7 +665,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                     setItemType('dish');
                     setIsItemModalOpen(true);
                   }}
-                  className="btn-gold text-xs font-bold"
+                  className="btn-gold text-xs font-bold flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Ajouter un Article</span>
@@ -597,84 +673,268 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
               </div>
             </div>
 
-            {/* Catalog Items Table / Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menuItems.map((item) => (
-                <div key={item.id} className="hotel-card p-4 flex gap-3.5 items-start">
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.name_fr}
-                      className="w-16 h-16 rounded-lg object-cover border border-hotel-cardBorder flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-lg bg-hotel-surface border border-hotel-cardBorder flex items-center justify-center text-hotel-gold/40 flex-shrink-0">
-                      <Utensils className="w-6 h-6" />
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-1">
-                      <h4 className="font-semibold text-sm text-hotel-text truncate">
-                        {item.name_fr}
-                      </h4>
-                      <button
-                        onClick={() =>
-                          menuService
-                            .toggleItemAvailability(item.id, !item.is_available)
-                            .then(loadMenu)
-                        }
-                        title={item.is_available ? 'Rendre indisponible' : 'Rendre disponible'}
-                        className="text-hotel-muted hover:text-hotel-gold p-1"
-                      >
-                        {item.is_available ? (
-                          <Eye className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <EyeOff className="w-4 h-4 text-red-400" />
-                        )}
-                      </button>
-                    </div>
-
-                    <span className="font-serif text-sm font-bold text-hotel-gold block mt-0.5">
-                      {formatXAF(item.price)}
-                    </span>
-
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setItemNameFr(item.name_fr);
-                          setItemNameEn(item.name_en || '');
-                          setItemPrice(item.price);
-                          setItemImageUrl(item.image_url || '');
-                          setItemAvailable(item.is_available);
-                          setItemCategoryId(item.category_id || categories[0]?.id || '');
-                          setItemType(item.item_type as 'dish' | 'drink');
-                          setIsItemModalOpen(true);
-                        }}
-                        className="btn-secondary py-1 px-2 text-[10px] flex items-center gap-1"
-                      >
-                        <Edit className="w-3 h-3" />
-                        <span>Modifier</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`Supprimer ${item.name_fr} ?`)) {
-                            menuService.deleteMenuItem(item.id).then(loadMenu);
-                          }
-                        }}
-                        className="text-hotel-muted hover:text-red-400 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+              <button
+                onClick={() => setSelectedCategoryFilter('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  selectedCategoryFilter === 'all'
+                    ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                    : 'bg-hotel-surface text-hotel-muted border border-hotel-cardBorder hover:text-hotel-text'
+                }`}
+              >
+                {t.allCategories} ({menuItems.length})
+              </button>
+              {categories.map((c) => {
+                const count = menuItems.filter((i) => i.category_id === c.id).length;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedCategoryFilter(c.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                      selectedCategoryFilter === c.id
+                        ? 'bg-hotel-gold text-hotel-black font-bold shadow-gold-glow'
+                        : 'bg-hotel-surface text-hotel-muted border border-hotel-cardBorder hover:text-hotel-text'
+                    }`}
+                  >
+                    {language === 'en' && c.name_en ? c.name_en : c.name_fr} ({count})
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Catalog Items Table / Grid */}
+            {menuItems.filter((item) =>
+              selectedCategoryFilter === 'all' ? true : item.category_id === selectedCategoryFilter
+            ).length === 0 ? (
+              <div className="py-16 text-center text-hotel-muted hotel-card">
+                <Utensils className="w-12 h-12 text-hotel-cardBorder mx-auto mb-3" />
+                <h4 className="font-serif text-base text-hotel-text font-bold mb-1">
+                  Aucun article trouvé
+                </h4>
+                <p className="text-xs text-hotel-muted max-w-sm mx-auto">
+                  {selectedCategoryFilter === 'all'
+                    ? 'Commencez par ajouter votre premier plat ou boisson au menu.'
+                    : 'Aucun article n’est rattaché à cette catégorie.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {menuItems
+                  .filter((item) =>
+                    selectedCategoryFilter === 'all' ? true : item.category_id === selectedCategoryFilter
+                  )
+                  .map((item) => (
+                    <div key={item.id} className="hotel-card p-4 flex gap-3.5 items-start">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name_fr}
+                          className="w-16 h-16 rounded-lg object-cover border border-hotel-cardBorder flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-hotel-surface border border-hotel-cardBorder flex items-center justify-center text-hotel-gold/40 flex-shrink-0">
+                          <Utensils className="w-6 h-6" />
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <h4 className="font-semibold text-sm text-hotel-text truncate">
+                            {item.name_fr}
+                          </h4>
+                          <button
+                            onClick={() =>
+                              menuService
+                                .toggleItemAvailability(item.id, !item.is_available)
+                                .then(loadMenu)
+                            }
+                            title={item.is_available ? 'Rendre indisponible' : 'Rendre disponible'}
+                            className="text-hotel-muted hover:text-hotel-gold p-1"
+                          >
+                            {item.is_available ? (
+                              <Eye className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <EyeOff className="w-4 h-4 text-red-400" />
+                            )}
+                          </button>
+                        </div>
+
+                        <span className="font-serif text-sm font-bold text-hotel-gold block mt-0.5">
+                          {formatXAF(item.price)}
+                        </span>
+
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingItem(item);
+                              setItemNameFr(item.name_fr);
+                              setItemNameEn(item.name_en || '');
+                              setItemPrice(item.price);
+                              setItemImageUrl(item.image_url || '');
+                              setItemAvailable(item.is_available);
+                              setItemCategoryId(item.category_id || categories[0]?.id || '');
+                              setItemType(item.item_type as 'dish' | 'drink');
+                              setIsItemModalOpen(true);
+                            }}
+                            className="btn-secondary py-1 px-2 text-[10px] flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Modifier</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Supprimer ${item.name_fr} ?`)) {
+                                menuService.deleteMenuItem(item.id).then(loadMenu);
+                              }
+                            }}
+                            className="text-hotel-muted hover:text-red-400 p-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Tab 3: Category Management */}
+        {activeTab === 'categories' && (
+          <div className="py-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-hotel-text">
+                  Gestion des Catégories du Menu
+                </h3>
+                <p className="text-xs text-hotel-muted">
+                  Organisez vos plats et boissons. Modifiez les noms, l’ordre d’affichage et la visibilité publique.
+                </p>
+              </div>
+
+              <button
+                onClick={handleOpenAddCategory}
+                className="btn-gold text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nouvelle Catégorie</span>
+              </button>
+            </div>
+
+            {categories.length === 0 ? (
+              <div className="py-16 text-center text-hotel-muted hotel-card">
+                <FolderTree className="w-12 h-12 text-hotel-cardBorder mx-auto mb-3" />
+                <h4 className="font-serif text-base text-hotel-text font-bold mb-1">
+                  Aucune catégorie configurée
+                </h4>
+                <p className="text-xs text-hotel-muted max-w-sm mx-auto mb-4">
+                  Créez des catégories (ex: Boissons, Plats Chauds, Desserts) pour organiser la carte de l’établissement.
+                </p>
+                <button
+                  onClick={handleOpenAddCategory}
+                  className="btn-gold text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Créer la première catégorie</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categories.map((cat) => {
+                  const itemsCount = menuItems.filter((i) => i.category_id === cat.id).length;
+                  return (
+                    <div
+                      key={cat.id}
+                      className="hotel-card p-4 flex flex-col justify-between border-hotel-cardBorder hover:border-hotel-gold/40 transition-colors"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 pb-2 border-b border-hotel-cardBorder">
+                          <div>
+                            <span className="text-[10px] font-mono text-hotel-gold font-bold px-1.5 py-0.5 rounded bg-hotel-gold/10 border border-hotel-gold/20">
+                              Ordre #{cat.sort_order ?? 0}
+                            </span>
+                            <h4 className="font-semibold text-base text-hotel-text mt-1.5">
+                              {cat.name_fr}
+                            </h4>
+                            {cat.name_en && (
+                              <p className="text-xs text-hotel-muted italic">
+                                EN : {cat.name_en}
+                              </p>
+                            )}
+                          </div>
+
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              cat.is_active
+                                ? 'bg-green-950 text-green-300 border border-green-800'
+                                : 'bg-red-950 text-red-300 border border-red-800'
+                            }`}
+                          >
+                            {cat.is_active ? t.categoryStatusActive : t.categoryStatusInactive}
+                          </span>
+                        </div>
+
+                        <div className="py-3 flex items-center justify-between text-xs text-hotel-muted">
+                          <span className="flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-hotel-gold" />
+                            <span>
+                              {itemsCount} {t.categoryItemsCount.toLowerCase()}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-hotel-cardBorder flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => handleToggleCategoryActive(cat)}
+                          className={`btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1.5 ${
+                            cat.is_active ? 'text-hotel-muted' : 'text-green-400'
+                          }`}
+                          title={cat.is_active ? 'Masquer du menu' : 'Rendre visible sur le menu'}
+                        >
+                          {cat.is_active ? (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5" />
+                              <span>Désactiver</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Activer</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditCategory(cat)}
+                            className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 hover:text-hotel-gold"
+                            title="Modifier cette catégorie"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Modifier</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteCategory(cat)}
+                            className="text-hotel-muted hover:text-red-400 p-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
+                            title="Supprimer la catégorie"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* CONFIRM PAYMENT MODAL */}
@@ -1000,10 +1260,16 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
       {/* CATEGORY MODAL */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsCategoryModalOpen(false)} />
+          <div
+            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            onClick={() => {
+              setIsCategoryModalOpen(false);
+              setEditingCategory(null);
+            }}
+          />
           <div className="relative w-full max-w-md bg-hotel-surface border border-hotel-cardBorder rounded-2xl p-6 z-10">
             <h3 className="font-serif text-lg font-bold text-hotel-text">
-              {t.addCategoryTitle}
+              {editingCategory ? t.editCategoryTitle : t.addCategoryTitle}
             </h3>
 
             {categoryError && (
@@ -1022,6 +1288,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                   required
                   value={categoryNameFr}
                   onChange={(e) => setCategoryNameFr(e.target.value)}
+                  placeholder="Ex: Boissons Rafraîchissantes"
                   className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
                 />
               </div>
@@ -1034,9 +1301,45 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                   type="text"
                   value={categoryNameEn}
                   onChange={(e) => setCategoryNameEn(e.target.value)}
+                  placeholder="Ex: Refreshing Beverages"
                   className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm focus:outline-none focus:border-hotel-gold"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-hotel-text mb-1">
+                  {t.categorySortOrder}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={categorySortOrder}
+                  onChange={(e) => setCategorySortOrder(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-sm font-mono focus:outline-none focus:border-hotel-gold"
+                />
+                <p className="text-[11px] text-hotel-muted mt-1">
+                  Détermine la position d'affichage sur le menu (0 = premier).
+                </p>
+              </div>
+
+              {editingCategory && (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="catActiveCheck"
+                    checked={categoryIsActive}
+                    onChange={(e) => setCategoryIsActive(e.target.checked)}
+                    className="rounded bg-hotel-card border-hotel-cardBorder text-hotel-gold focus:ring-0"
+                  />
+                  <label
+                    htmlFor="catActiveCheck"
+                    className="text-xs text-hotel-text font-medium cursor-pointer"
+                  >
+                    {t.categoryActiveLabel}
+                  </label>
+                </div>
+              )}
 
               <div className="pt-3 flex gap-2">
                 <button type="submit" className="flex-1 btn-gold py-2.5 text-xs font-bold">
@@ -1044,7 +1347,10 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsCategoryModalOpen(false)}
+                  onClick={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                  }}
                   className="btn-secondary text-xs"
                 >
                   {t.cancel}
