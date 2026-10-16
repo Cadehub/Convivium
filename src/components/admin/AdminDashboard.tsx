@@ -23,6 +23,7 @@ import {
   EyeOff,
   Upload,
   Loader2,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -31,6 +32,7 @@ import { settingsService } from '../../services/settings.service';
 import { staffService } from '../../services/staff.service';
 import { menuService } from '../../services/menu.service';
 import { uploadImageToImgBB } from '../../lib/imgbb';
+import { PaymentVerificationCard } from '../kitchen/PaymentVerificationCard';
 import type {
   Order,
   PaymentMethodSetting,
@@ -53,6 +55,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   // Overview & Orders State
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderSearch, setOrderSearch] = useState('');
+  const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
 
   // Payment Settings
   const [paymentSettings, setPaymentSettings] = useState<PaymentMethodSetting[]>([]);
@@ -568,12 +571,13 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                       <th className="py-3 px-4">Total</th>
                       <th className="py-3 px-4">Paiement</th>
                       <th className="py-3 px-4">Préparation</th>
+                      <th className="py-3 px-4 text-right">Contrôle SMS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-hotel-cardBorder">
                     {filteredOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-hotel-muted">
+                        <td colSpan={8} className="py-8 text-center text-hotel-muted">
                           Aucune commande trouvée.
                         </td>
                       </tr>
@@ -610,6 +614,15 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                           </td>
                           <td className="py-3 px-4 font-medium capitalize text-hotel-text">
                             {o.preparation_status}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setInspectingOrder(o)}
+                              className="btn-secondary py-1 px-2.5 text-[11px] font-semibold text-hotel-gold hover:text-hotel-gold-light"
+                            >
+                              Fiche
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -1562,6 +1575,41 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SUPERVISOR VIEW: READ-ONLY PAYMENT VERIFICATION FICHE MODAL */}
+      {inspectingOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            onClick={() => setInspectingOrder(null)}
+          />
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-hotel-surface border border-hotel-cardBorder rounded-2xl p-6 z-10 my-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-hotel-cardBorder">
+              <div>
+                <span className="text-[10px] font-bold text-hotel-muted uppercase tracking-wider block">
+                  Consultation Direction / Superviseur (Lecture Seule)
+                </span>
+                <h3 className="font-serif text-lg font-bold text-hotel-text">
+                  Fiche de Contrôle Paiement — {inspectingOrder.public_reference}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingOrder(null)}
+                className="p-1.5 rounded-lg text-hotel-muted hover:text-hotel-text hover:bg-hotel-card"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <PaymentVerificationCard
+              order={inspectingOrder}
+              allOrders={orders}
+              readOnly={true}
+            />
           </div>
         </div>
       )}

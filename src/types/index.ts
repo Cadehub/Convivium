@@ -76,6 +76,9 @@ export interface Order {
   created_at: string;
   updated_at?: string;
   items?: OrderItemSnapshot[];
+  order_items?: OrderItemSnapshot[];
+  payment_declarations?: PaymentDeclaration[];
+  payment_verifications?: PaymentVerification[];
 }
 
 export interface PaymentDeclaration {

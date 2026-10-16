@@ -148,6 +148,9 @@ export const translations = {
     statusDescPaid: 'Votre paiement a été authentifié avec succès par la cuisine. Votre commande est en cours de traitement.',
     statusDescRejected: 'La transaction n’a pas pu être identifiée sur le compte marchand. Veuillez contacter la réception ou recommencer.',
     statusDescReview: 'La transaction nécessite un contrôle approfondi par notre équipe.',
+    paymentRejectedNoticeTitle: 'Déclaration de paiement non validée',
+    paymentRejectedNoticeBody: 'Notre personnel Cuisine a vérifié le relevé du compte marchand officiel mais n’a pas pu confirmer votre versement. Attention : Aucun remboursement automatique n’est déclenché. Si vous avez bien été débité par votre opérateur, conservez votre SMS de confirmation et rapprochez-vous de la réception.',
+    reSubmitPaymentButton: 'Soumettre une nouvelle déclaration',
 
     // Staff Authentication
     staffLoginTitle: 'Espace Réservé au Personnel',
@@ -402,6 +405,9 @@ export const translations = {
     statusDescPaid: 'Your payment was authenticated by kitchen personnel. Your order is actively being prepared.',
     statusDescRejected: 'The transaction could not be located on the merchant account. Please contact hotel front desk or try again.',
     statusDescReview: 'Your payment declaration requires closer inspection by our staff.',
+    paymentRejectedNoticeTitle: 'Payment Declaration Not Confirmed',
+    paymentRejectedNoticeBody: 'Our Kitchen team cross-checked the official merchant statement but could not validate the declared transfer. Notice: No automatic refund has been triggered. If your mobile account was debited, please retain your confirmation SMS and see the hotel front desk.',
+    reSubmitPaymentButton: 'Submit a New Declaration',
 
     // Staff Authentication
     staffLoginTitle: 'Staff Portal',

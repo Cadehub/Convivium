@@ -257,6 +257,28 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         <span>Payer par Mobile Money</span>
                       </button>
                     )}
+
+                  {/* If payment was rejected by cuisine, provide clear guidance & correction path */}
+                  {currentOrder.payment_status === 'payment_rejected' && (
+                    <div className="mt-3 p-3 rounded-xl bg-red-950/70 border border-red-800 text-xs space-y-2">
+                      <div className="flex items-center gap-1.5 font-bold text-red-300">
+                        <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        <span>{t.paymentRejectedNoticeTitle}</span>
+                      </div>
+                      <p className="text-[11px] text-red-200/90 leading-relaxed">
+                        {t.paymentRejectedNoticeBody}
+                      </p>
+                      {onOpenPaymentForOrder && (
+                        <button
+                          onClick={() => onOpenPaymentForOrder(currentOrder)}
+                          className="w-full btn-gold text-xs py-2 font-bold flex items-center justify-center gap-1.5 shadow-sm mt-1"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>{t.reSubmitPaymentButton}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
