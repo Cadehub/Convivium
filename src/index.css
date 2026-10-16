@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-hotel-black text-hotel-text font-sans antialiased selection:bg-hotel-gold selection:text-hotel-black;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Greek Meander Decorative Borders inspired by the Convivium Logo */
+.border-greek-pattern {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #d4af37,
+    #d4af37 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  height: 2px;
+}
+
+/* Glassmorphism luxury dark card */
+.hotel-card {
+  @apply bg-hotel-card border border-hotel-cardBorder rounded-xl shadow-card-dark transition-all duration-200;
+}
+
+.hotel-card:hover {
+  @apply border-hotel-gold-border;
+}
+
+/* Gold Button Styles */
+.btn-gold {
+  @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-hotel-black bg-hotel-gold hover:bg-hotel-gold-light active:bg-hotel-gold-dark transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-gold/50 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-hotel-text bg-hotel-surface hover:bg-hotel-accent border border-hotel-cardBorder transition-all focus:outline-none focus:ring-2 focus:ring-hotel-cardBorder disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-red-700 hover:bg-red-600 transition-all focus:outline-none focus:ring-2 focus:ring-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #272727;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
