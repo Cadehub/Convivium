@@ -16,6 +16,7 @@ import { menuService } from './services/menu.service';
 import { settingsService } from './services/settings.service';
 import type { MenuCategory, MenuItem, RestaurantSettings } from './types';
 import type { CreateOrderResult } from './services/orders.service';
+import { getStoredClientOrderToken } from './lib/security';
 import { UtensilsCrossed, Loader2, RefreshCw } from 'lucide-react';
 
 export function App() {
@@ -179,13 +180,14 @@ export function App() {
           <OrderTrackingView
             initialPublicRef={trackingReference}
             onOpenPaymentForOrder={(order) => {
+              const savedToken = getStoredClientOrderToken(order.public_reference) || '';
               setActivePaymentOrder({
                 id: order.id,
                 public_reference: order.public_reference,
                 total_amount: order.total_amount,
                 payment_status: order.payment_status,
                 preparation_status: order.preparation_status,
-                raw_token: '',
+                raw_token: savedToken,
                 success: true,
               });
             }}

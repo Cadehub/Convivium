@@ -112,6 +112,8 @@ export const translations = {
     payerPhonePlaceholder: 'Ex: 677 00 00 00',
     submitDeclarationButton: 'Envoyer ma déclaration',
     declarationSuccessNotice: 'Déclaration transmise ! Notre personnel Cuisine vérifie actuellement votre paiement sur le relevé marchand officiel.',
+    backToInstructions: 'Retour aux instructions de paiement',
+    noteOptionalLabel: 'Remarque ou précision (facultative)',
 
     // Order Tracking
     trackingTitle: 'Suivi de commande en direct',
@@ -364,6 +366,8 @@ export const translations = {
     payerPhonePlaceholder: 'e.g. 677 00 00 00',
     submitDeclarationButton: 'Submit Declaration',
     declarationSuccessNotice: 'Declaration submitted! Kitchen staff is currently verifying your transfer on the official merchant account.',
+    backToInstructions: 'Back to payment instructions',
+    noteOptionalLabel: 'Note or special remark (optional)',
 
     // Order Tracking
     trackingTitle: 'Live Order Tracking',
