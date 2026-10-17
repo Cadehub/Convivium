@@ -7,7 +7,7 @@ export const settingsService = {
   async getRestaurantSettings(): Promise<RestaurantSettings> {
     const { data, error } = await supabase
       .from('restaurant_settings')
-      .select('id, hotel_name, hotel_address, hotel_phone, currency, modes_active, delivery_fee, updated_at')
+      .select('id, hotel_name, hotel_address, hotel_phone, currency, modes_active, delivery_fee, public_app_url, updated_at')
       .eq('id', 'default')
       .single();
 

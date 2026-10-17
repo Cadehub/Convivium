@@ -1,12 +1,12 @@
 import React from 'react';
-import { Lock, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface FooterProps {
-  onOpenStaffLogin: () => void;
+  onOpenStaffLogin?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenStaffLogin }) => {
+export const Footer: React.FC<FooterProps> = () => {
   const { t, language } = useLanguage();
 
   return (
@@ -49,14 +49,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStaffLogin }) => {
             {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}
           </p>
 
-          <button
-            type="button"
-            onClick={onOpenStaffLogin}
-            className="inline-flex items-center gap-1.5 text-hotel-muted hover:text-hotel-text transition-colors py-1 px-2 rounded"
-          >
-            <Lock className="w-3 h-3" />
-            <span>{t.navStaff}</span>
-          </button>
+          <p className="text-[11px] text-hotel-muted">
+            {language === 'fr' ? 'Hospitalité & Restauration de Prestige' : 'Hospitality & Prestige Dining'}
+          </p>
         </div>
       </div>
     </footer>

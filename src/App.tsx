@@ -15,6 +15,7 @@ import { useCart } from './context/CartContext';
 import { useLanguage } from './i18n/LanguageContext';
 import { menuService } from './services/menu.service';
 import { settingsService } from './services/settings.service';
+import { serviceLocationService } from './services/service-location.service';
 import { supabase } from './lib/supabase';
 import { subscribeToLiveSyncEvents } from './lib/realtime';
 import { formatXAF } from './lib/formatters';
@@ -23,7 +24,7 @@ import {
   parseNotificationDeepLink,
   stripNotificationParams,
 } from './lib/push';
-import type { MenuCategory, MenuItem, MenuComplement, RestaurantSettings } from './types';
+import type { MenuCategory, MenuItem, MenuComplement, RestaurantSettings, ResolvedServiceLocation } from './types';
 import type { CreateOrderResult } from './services/orders.service';
 import {
   getStoredClientOrderToken,
@@ -43,6 +44,10 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  QrCode,
+  CheckCircle2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 const MENU_ITEMS_PER_PAGE = 12; // 2 columns x 6 rows
@@ -109,6 +114,73 @@ export function App() {
       clearPendingPaymentOrder();
     }
   };
+
+  // Active QR Code Service Location (table or room) persisted across session
+  const [activeServiceLocation, setActiveServiceLocation] = useState<ResolvedServiceLocation | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('convivium_active_spot_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+  const [spotScanFeedback, setSpotScanFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  const handleClearServiceLocation = () => {
+    setActiveServiceLocation(null);
+    try {
+      sessionStorage.removeItem('convivium_active_spot_v1');
+    } catch {}
+  };
+
+  // Service location QR code scanning: `/?spot=CVH-...`
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const spotCode = params.get('spot');
+    if (!spotCode) return;
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await serviceLocationService.resolveLocation(spotCode);
+        if (!isMounted) return;
+        if (res && res.success && res.location && res.location.is_active) {
+          const loc = res.location;
+          setActiveServiceLocation(loc);
+          try {
+            sessionStorage.setItem('convivium_active_spot_v1', JSON.stringify(loc));
+          } catch {}
+          setSpotScanFeedback({
+            type: 'success',
+            message:
+              language === 'fr'
+                ? `Emplacement validé : ${loc.label} (${loc.location_type === 'room' ? 'Service en chambre' : 'Sur place'})`
+                : `Location verified: ${loc.label} (${loc.location_type === 'room' ? 'Room service' : 'Dine-in'})`,
+          });
+        } else {
+          setSpotScanFeedback({
+            type: 'error',
+            message:
+              language === 'fr'
+                ? 'Emplacement QR non reconnu ou actuellement inactif. Vous pouvez choisir votre mode manuellement.'
+                : 'QR location not recognized or currently inactive. You may select your order mode manually.',
+          });
+        }
+      } catch (err) {
+        console.error('Error resolving service location from QR', err);
+      } finally {
+        params.delete('spot');
+        const query = params.toString() ? `?${params.toString()}` : '';
+        window.history.replaceState(null, '', `${window.location.pathname}${query}${window.location.hash}`);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
 
   // Data State
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -376,6 +448,64 @@ export function App() {
               </div>
             </div>
 
+            {/* Active Service Location Pill / Banner */}
+            {activeServiceLocation && (
+              <div className="bg-[#FAF6EE] border-b border-[#D8C79A]">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 text-hotel-text">
+                    <span className="w-6 h-6 rounded-md bg-[#9A721C] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <QrCode className="w-3.5 h-3.5" />
+                    </span>
+                    <span>
+                      <strong className="text-[#8A6214] font-bold">
+                        {t.verifiedByQr} :
+                      </strong>{' '}
+                      <span className="font-semibold">{activeServiceLocation.label}</span>
+                      <span className="text-hotel-secondary ml-1">
+                        ({activeServiceLocation.location_type === 'room' ? t.modeRoomService : t.modeDineIn})
+                      </span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearServiceLocation}
+                    className="text-xs text-[#9A721C] hover:text-hotel-text font-semibold underline shrink-0 px-2 py-1 rounded hover:bg-[#FAF6EE]"
+                  >
+                    {language === 'fr' ? 'Changer' : 'Change'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Scan Feedback Banner (e.g. error / confirmation) */}
+            {spotScanFeedback && (
+              <div
+                className={`border-b text-xs px-4 py-2.5 flex items-center justify-between gap-3 ${
+                  spotScanFeedback.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-red-50 border-red-200 text-red-900'
+                }`}
+              >
+                <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {spotScanFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    )}
+                    <span className="font-medium">{spotScanFeedback.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSpotScanFeedback(null)}
+                    className="p-1 hover:opacity-70 shrink-0 rounded"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Sticky Category Filter Bar */}
             <div className="sticky top-14 sm:top-16 z-30 bg-[#FAF8F5]/95 backdrop-blur-sm border-b border-hotel-border">
               <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -617,6 +747,8 @@ export function App() {
         onClose={() => setIsCheckoutOpen(false)}
         onOrderCreated={handleOrderCreated}
         restaurantSettings={restaurantSettings}
+        activeServiceLocation={activeServiceLocation}
+        onClearServiceLocation={handleClearServiceLocation}
       />
 
       {/* Payment Modal */}

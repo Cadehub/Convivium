@@ -24,25 +24,40 @@ export const Header: React.FC<HeaderProps> = ({
   const { language, setLanguage, t } = useLanguage();
   const { totalItems } = useCart();
   const { profile } = useAuth();
+  const clickTimestampsRef = React.useRef<number[]>([]);
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setActiveTab('menu');
+
+    const now = Date.now();
+    const recent = [...clickTimestampsRef.current.filter((time) => now - time <= 3000), now];
+    clickTimestampsRef.current = recent;
+
+    if (recent.length >= 5) {
+      clickTimestampsRef.current = [];
+      onOpenStaffLogin();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-hotel-border">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
-          {/* Official Logo & Brand Name */}
+          {/* Official Logo & Brand Name (Discreet 5-click / tap staff portal trigger) */}
           <button
             type="button"
-            onClick={() => setActiveTab('menu')}
-            className="flex items-center gap-2 sm:gap-3 text-left group focus:outline-none min-w-0"
+            onClick={handleLogoClick}
+            className="flex items-center gap-2 sm:gap-3 text-left group focus:outline-none min-w-0 select-none cursor-pointer"
           >
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-stone-200 bg-stone-900 shrink-0 shadow-subtle">
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-stone-200 bg-stone-900 shrink-0 shadow-subtle transition-transform active:scale-95">
               <img
                 src="/logo.jpg"
                 alt="Convivium Home Hotel"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover pointer-events-none"
               />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 pointer-events-none">
               <span className="block font-serif text-base sm:text-xl font-semibold text-hotel-text tracking-tight leading-none truncate">
                 Convivium
               </span>
@@ -80,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </nav>
 
-          {/* Right Controls: Mobile Nav, Language Switcher, Staff, Cart */}
+          {/* Right Controls: Mobile Nav, Language Switcher, Cart */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Mobile Menu / Track switcher */}
             <button
@@ -97,17 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{activeTab === 'tracking' ? t.navMenu : (language === 'fr' ? 'Suivi' : 'Orders')}</span>
             </button>
 
-            {/* Staff login button (desktop) */}
-            {!profile && (
-              <button
-                type="button"
-                onClick={onOpenStaffLogin}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-hotel-muted hover:text-hotel-text hover:bg-hotel-subtle transition-colors"
-              >
-                {t.navStaff}
-              </button>
-            )}
-
+            {/* Authenticated Staff Workspace Badge (Only shown when already logged in) */}
             {profile && profile.is_active && (
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#FBF7EE] text-[#9A721C] border border-[#E5D099]">
                 {profile.role === 'admin' ? (

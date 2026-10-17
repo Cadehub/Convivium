@@ -109,6 +109,27 @@ export interface OrderItemSnapshot {
   preparation_time_minutes?: number | null;
 }
 
+export type ServiceLocationType = 'table' | 'room';
+
+export interface ServiceLocation {
+  id: string;
+  location_type: ServiceLocationType;
+  label: string;
+  code: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResolvedServiceLocation {
+  id: string;
+  location_type: ServiceLocationType;
+  label: string;
+  code: string;
+  is_active: boolean;
+}
+
 export interface Order {
   id: string;
   public_reference: string;
@@ -118,6 +139,8 @@ export interface Order {
   customer_phone: string | null;
   room_number: string | null;
   table_number: string | null;
+  service_location_id?: string | null;
+  service_location_snapshot?: string | null;
   delivery_address: string | null;
   delivery_schedule_type?: 'instant' | 'scheduled' | null;
   scheduled_delivery_time?: string | null;
@@ -181,6 +204,7 @@ export interface RestaurantSettings {
     delivery: boolean;
   };
   delivery_fee?: number | null;
+  public_app_url?: string | null;
   updated_at?: string;
 }
 

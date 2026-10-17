@@ -22,6 +22,7 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
+  QrCode,
 } from 'lucide-react';
 import type { Order, PreparationStatus } from '../../types';
 import { formatXAF, formatDateTime } from '../../lib/formatters';
@@ -297,8 +298,14 @@ export const PaymentVerificationCard: React.FC<PaymentVerificationCardProps> = (
                   <MapPin className="w-3 h-3 text-[#9A721C]" />
                   <span>{destInfo.locationTitle}</span>
                 </span>
-                <span className="text-base sm:text-lg font-extrabold text-stone-950 tracking-tight break-words">
-                  {destInfo.locationValue}
+                <span className="text-base sm:text-lg font-extrabold text-stone-950 tracking-tight break-words flex items-center gap-2 flex-wrap">
+                  <span>{order.service_location_snapshot || destInfo.locationValue}</span>
+                  {(order.service_location_id || order.service_location_snapshot) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF6EE] border border-[#D8C79A] text-[#8A6214] shadow-2xs">
+                      <QrCode className="w-3 h-3 text-[#9A721C]" />
+                      <span>QR Code</span>
+                    </span>
+                  )}
                 </span>
               </div>
             </div>

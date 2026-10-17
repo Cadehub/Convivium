@@ -13,6 +13,7 @@ import {
   Clock,
   Ban,
   Trash2,
+  QrCode,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService } from '../../services/orders.service';
@@ -523,6 +524,12 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     `${t.modeDelivery} — ${currentOrder.delivery_address || ''}`}
                   {currentOrder.order_mode === 'takeaway' && t.modeTakeaway}
                 </strong>
+                {(currentOrder.service_location_snapshot || currentOrder.service_location_id) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF6EE] border border-[#D8C79A] text-[#8A6214]">
+                    <QrCode className="w-3 h-3 text-[#9A721C]" />
+                    <span>QR Code</span>
+                  </span>
+                )}
                 {currentOrder.order_mode === 'delivery' && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#FAF6EE] border border-[#D8C79A] text-[11px] font-bold text-[#8A6214]">
                     <Clock className="w-3 h-3 text-[#9A721C]" />

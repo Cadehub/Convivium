@@ -343,6 +343,8 @@ export type Database = {
           public_reference: string
           room_number: string | null
           scheduled_delivery_time: string | null
+          service_location_id: string | null
+          service_location_snapshot: string | null
           table_number: string | null
           total_amount: number
           updated_at: string
@@ -365,6 +367,8 @@ export type Database = {
           public_reference: string
           room_number?: string | null
           scheduled_delivery_time?: string | null
+          service_location_id?: string | null
+          service_location_snapshot?: string | null
           table_number?: string | null
           total_amount: number
           updated_at?: string
@@ -387,6 +391,8 @@ export type Database = {
           public_reference?: string
           room_number?: string | null
           scheduled_delivery_time?: string | null
+          service_location_id?: string | null
+          service_location_snapshot?: string | null
           table_number?: string | null
           total_amount?: number
           updated_at?: string
@@ -554,6 +560,7 @@ export type Database = {
           hotel_phone: string | null
           id: string
           modes_active: Json
+          public_app_url: string | null
           updated_at: string
         }
         Insert: {
@@ -564,6 +571,7 @@ export type Database = {
           hotel_phone?: string | null
           id?: string
           modes_active?: Json
+          public_app_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -574,6 +582,40 @@ export type Database = {
           hotel_phone?: string | null
           id?: string
           modes_active?: Json
+          public_app_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_locations: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          location_type: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          location_type: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          location_type?: string
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
@@ -630,6 +672,13 @@ export type Database = {
           p_raw_token: string
           p_delivery_schedule_type?: string
           p_scheduled_delivery_time?: string | null
+          p_service_location_id?: string | null
+        }
+        Returns: Json
+      }
+      resolve_service_location: {
+        Args: {
+          p_code: string
         }
         Returns: Json
       }

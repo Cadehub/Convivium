@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { X, ArrowRight, AlertCircle, Loader2, Utensils, Bed, Truck, Zap, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ArrowRight, AlertCircle, Loader2, Utensils, Bed, Truck, Zap, Clock, QrCode, CheckCircle2 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService, type CreateOrderResult } from '../../services/orders.service';
-import type { OrderMode, RestaurantSettings } from '../../types';
+import type { OrderMode, RestaurantSettings, ResolvedServiceLocation } from '../../types';
 import { formatXAF } from '../../lib/formatters';
 import {
   saveCustomerInfo,
@@ -16,6 +16,8 @@ interface CheckoutModalProps {
   onClose: () => void;
   onOrderCreated: (result: CreateOrderResult) => void;
   restaurantSettings?: RestaurantSettings | null;
+  activeServiceLocation?: ResolvedServiceLocation | null;
+  onClearServiceLocation?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -23,18 +25,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onOrderCreated,
   restaurantSettings,
+  activeServiceLocation,
+  onClearServiceLocation,
 }) => {
   const { items, subtotal, totalItems, clearCart } = useCart();
   const { language, t } = useLanguage();
 
   const savedInfo = getSavedCustomerInfo();
 
-  const [orderMode, setOrderMode] = useState<OrderMode>(
-    (savedInfo?.orderMode as OrderMode) || 'dine_in'
-  );
+  const [orderMode, setOrderMode] = useState<OrderMode>(() => {
+    if (activeServiceLocation) {
+      return activeServiceLocation.location_type === 'room' ? 'room_service' : 'dine_in';
+    }
+    return (savedInfo?.orderMode as OrderMode) || 'dine_in';
+  });
   const [customerName, setCustomerName] = useState(savedInfo?.customerName || '');
   const [customerPhone, setCustomerPhone] = useState(savedInfo?.customerPhone || '');
-  const [locationDetail, setLocationDetail] = useState(savedInfo?.locationDetail || '');
+  const [locationDetail, setLocationDetail] = useState(() => {
+    if (activeServiceLocation) return activeServiceLocation.label;
+    return savedInfo?.locationDetail || '';
+  });
   const [deliveryScheduleType, setDeliveryScheduleType] = useState<'instant' | 'scheduled'>(
     'instant'
   );
@@ -43,6 +53,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeServiceLocation) {
+      setOrderMode(activeServiceLocation.location_type === 'room' ? 'room_service' : 'dine_in');
+      setLocationDetail(activeServiceLocation.label);
+    }
+  }, [activeServiceLocation]);
 
   if (!isOpen) return null;
 
@@ -107,6 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         customerPhone: customerPhone.trim() || undefined,
         orderMode,
         locationDetail: locationDetail.trim(),
+        serviceLocationId: activeServiceLocation?.id || null,
         deliveryScheduleType: orderMode === 'delivery' ? deliveryScheduleType : 'instant',
         scheduledDeliveryTime:
           orderMode === 'delivery' && deliveryScheduleType === 'scheduled'
@@ -184,6 +202,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Active QR Code Service Location Banner */}
+        {activeServiceLocation && (
+          <div className="mt-4 p-3.5 rounded-xl bg-[#FAF6EE] border border-[#D8C79A] text-xs flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-8 h-8 rounded-lg bg-[#9A721C] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <QrCode className="w-4 h-4" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold text-[#8A6214]">
+                    {t.verifiedByQr}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#9A721C]/15 text-[#8A6214]">
+                    {activeServiceLocation.location_type === 'room' ? t.modeRoomService : t.modeDineIn}
+                  </span>
+                </div>
+                <p className="text-hotel-text font-serif text-sm font-semibold truncate mt-0.5">
+                  {activeServiceLocation.label}
+                </p>
+              </div>
+            </div>
+            {onClearServiceLocation && (
+              <button
+                type="button"
+                onClick={onClearServiceLocation}
+                className="text-xs text-[#9A721C] font-semibold hover:underline shrink-0 px-2 py-1 rounded hover:bg-[#FAF6EE]"
+              >
+                {language === 'fr' ? 'Modifier' : 'Change'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Order Summary Strip — Strictly hides delivery fee unless defined by Admin AND delivery mode is selected */}
         <div className="mt-4 px-4 py-3 rounded-xl bg-hotel-subtle/70 border border-hotel-border space-y-1.5">
@@ -330,14 +381,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <label className="block text-xs font-semibold text-hotel-text mb-1.5">
                 {t.roomNumber} <span className="text-red-600">*</span>
               </label>
-              <input
-                type="text"
-                required
-                value={locationDetail}
-                onChange={(e) => setLocationDetail(e.target.value)}
-                placeholder={t.roomNumberPlaceholder}
-                className="input-hotel"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={locationDetail}
+                  onChange={(e) => setLocationDetail(e.target.value)}
+                  placeholder={t.roomNumberPlaceholder}
+                  className={`input-hotel ${activeServiceLocation?.location_type === 'room' ? 'pr-28 border-[#D8C79A] bg-[#FAF6EE]/30' : ''}`}
+                />
+                {activeServiceLocation?.location_type === 'room' && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF6EE] border border-[#D8C79A] text-[#8A6214]">
+                    <CheckCircle2 className="w-3 h-3 text-[#9A721C]" />
+                    QR Code
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -347,13 +406,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {t.tableNumber}{' '}
                 <span className="font-normal text-hotel-muted">({t.optional})</span>
               </label>
-              <input
-                type="text"
-                value={locationDetail}
-                onChange={(e) => setLocationDetail(e.target.value)}
-                placeholder={t.tableNumberPlaceholder}
-                className="input-hotel"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={locationDetail}
+                  onChange={(e) => setLocationDetail(e.target.value)}
+                  placeholder={t.tableNumberPlaceholder}
+                  className={`input-hotel ${activeServiceLocation?.location_type === 'table' ? 'pr-28 border-[#D8C79A] bg-[#FAF6EE]/30' : ''}`}
+                />
+                {activeServiceLocation?.location_type === 'table' && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF6EE] border border-[#D8C79A] text-[#8A6214]">
+                    <CheckCircle2 className="w-3 h-3 text-[#9A721C]" />
+                    QR Code
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

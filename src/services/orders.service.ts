@@ -16,6 +16,7 @@ export interface CreateOrderPayload {
   customerPhone?: string;
   orderMode: OrderMode;
   locationDetail?: string; // room number, table number, or delivery address
+  serviceLocationId?: string | null;
   deliveryScheduleType?: 'instant' | 'scheduled';
   scheduledDeliveryTime?: string | null;
   notes?: string;
@@ -77,6 +78,7 @@ export const ordersService = {
       p_scheduled_delivery_time: payload.scheduledDeliveryTime
         ? payload.scheduledDeliveryTime.trim()
         : null,
+      p_service_location_id: payload.serviceLocationId || null,
     });
 
     if (error) {
@@ -227,6 +229,8 @@ export const ordersService = {
         customer_phone,
         room_number,
         table_number,
+        service_location_id,
+        service_location_snapshot,
         delivery_address,
         delivery_schedule_type,
         scheduled_delivery_time,

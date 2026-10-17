@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   Clock,
   ZoomIn,
+  QrCode,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -47,6 +48,7 @@ import { ConfirmationModal } from '../common/ConfirmationModal';
 import { StaffNotificationButton } from '../common/NotificationSettings';
 import { ComplementManager } from '../menu/ComplementManager';
 import { ItemVariantManager } from '../menu/ItemVariantManager';
+import { ServiceLocationsManager } from './ServiceLocationsManager';
 import { supabase } from '../../lib/supabase';
 import { subscribeToLiveSyncEvents } from '../../lib/realtime';
 import type {
@@ -63,7 +65,7 @@ import type {
 } from '../../types';
 import { formatXAF, formatDateTime } from '../../lib/formatters';
 
-type AdminSection = 'orders' | 'menu' | 'payments' | 'staff' | 'modes' | 'audit';
+type AdminSection = 'orders' | 'menu' | 'payments' | 'staff' | 'modes' | 'locations' | 'audit';
 
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const { profile } = useAuth();
@@ -1067,6 +1069,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       id: 'modes',
       label: language === 'fr' ? 'Modes de commande' : 'Order Modes',
       icon: Sliders,
+    },
+    {
+      id: 'locations',
+      label: t.adminTabLocations || (language === 'fr' ? 'Tables & QR Codes' : 'Tables & QR Codes'),
+      icon: QrCode,
     },
     {
       id: 'audit',
@@ -3576,6 +3583,18 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               </div>
             );
           })()}
+
+          {/* SECTION 7: SERVICE LOCATIONS & QR CODES */}
+          {activeTab === 'locations' && (
+            <ServiceLocationsManager
+              restaurantSettings={restaurantSettings}
+              onUpdateSettings={async (updates) => {
+                await settingsService.updateRestaurantSettings(updates);
+                setRestaurantSettings((prev) => (prev ? { ...prev, ...updates } : null));
+              }}
+              showToast={showToast}
+            />
+          )}
         </div>
       </main>
 
