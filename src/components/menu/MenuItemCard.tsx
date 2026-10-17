@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Utensils, Wine, Clock, ZoomIn, SlidersHorizontal } from 'lucide-react';
+import { Plus, Minus, Utensils, Wine, Clock, ZoomIn } from 'lucide-react';
 import type { MenuItem, MenuComplement, MenuItemVariant, CartComplementSelection } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useCart } from '../../context/CartContext';
@@ -198,8 +198,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   onClick={handleSimpleAdd}
                   className="w-full inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
                 >
-                  <SlidersHorizontal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
-                  <span className="truncate">{t.customizeDish}</span>
+                  <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
+                  <span className="truncate">{t.addToCart}</span>
                 </button>
               ) : totalQuantityInCart > 0 ? (
                 <div className="flex items-center justify-between rounded-lg border border-[#C59B27] bg-[#FBF7EE] p-0.5 sm:p-1">

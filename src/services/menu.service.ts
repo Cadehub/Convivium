@@ -164,34 +164,25 @@ export const menuService = {
     emitLiveSyncEvent('catalog_updated');
   },
 
-  // Staff: Delete category (checks subcategories and items safely)
+  // Staff: Delete category (safely cleans subcategories and items)
   async deleteCategory(id: string): Promise<void> {
-    // 1. Check if category has subcategories
-    const { count: childCount, error: childErr } = await supabase
+    // 1. Delete any items belonging directly to this category
+    await supabase.from('menu_items').delete().eq('category_id', id);
+
+    // 2. Find any subcategories and delete their items, then the subcategories
+    const { data: children } = await supabase
       .from('menu_categories')
-      .select('id', { count: 'exact', head: true })
+      .select('id')
       .eq('parent_id', id);
 
-    if (childErr) throw childErr;
-    if (childCount && childCount > 0) {
-      throw new Error(
-        'Impossible de supprimer cette catégorie car elle contient des sous-catégories. Veuillez d’abord réassigner ou supprimer ses sous-catégories.'
-      );
+    if (children && children.length > 0) {
+      for (const child of children) {
+        await supabase.from('menu_items').delete().eq('category_id', child.id);
+        await supabase.from('menu_categories').delete().eq('id', child.id);
+      }
     }
 
-    // 2. Check if any items belong to this category
-    const { count: itemCount, error: countErr } = await supabase
-      .from('menu_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('category_id', id);
-
-    if (countErr) throw countErr;
-    if (itemCount && itemCount > 0) {
-      throw new Error(
-        'Impossible de supprimer cette catégorie car elle contient encore des produits. Veuillez d’abord réassigner ou supprimer ces produits.'
-      );
-    }
-
+    // 3. Delete the category
     const { error } = await supabase
       .from('menu_categories')
       .delete()
@@ -307,6 +298,8 @@ export const menuService = {
 
   // Staff: Delete menu item
   async deleteMenuItem(id: string): Promise<void> {
+    await supabase.from('menu_item_variants').delete().eq('menu_item_id', id);
+
     const { error } = await supabase
       .from('menu_items')
       .delete()

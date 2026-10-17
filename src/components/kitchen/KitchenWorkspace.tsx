@@ -606,26 +606,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
     }
   };
 
-  const handleDeleteCategory = async (cat: MenuCategory) => {
-    const childCategories = categories.filter((c) => c.parent_id === cat.id);
-    if (childCategories.length > 0) {
-      alert(
-        language === 'fr'
-          ? `Impossible de supprimer "${cat.name_fr}" : ${childCategories.length} sous-catégorie(s) y sont rattachées.`
-          : `Cannot delete "${cat.name_en || cat.name_fr}": ${childCategories.length} subcategory/ies attached.`
-      );
-      return;
-    }
-
-    const itemsInCat = menuItems.filter((i) => i.category_id === cat.id);
-    if (itemsInCat.length > 0) {
-      alert(
-        language === 'fr'
-          ? `Impossible de supprimer la catégorie "${cat.name_fr}" : ${itemsInCat.length} article(s) y sont rattachés. Veuillez d'abord réassigner ou supprimer ces articles.`
-          : `Cannot delete category "${cat.name_en || cat.name_fr}": ${itemsInCat.length} item(s) are attached. Please reassign or delete them first.`
-      );
-      return;
-    }
+  const handleDeleteCategory = (cat: MenuCategory) => {
     setCategoryToDelete(cat);
   };
 
@@ -2039,8 +2020,16 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
         title={language === 'fr' ? 'Supprimer la catégorie' : 'Delete Category'}
         message={
           language === 'fr'
-            ? `Voulez-vous vraiment supprimer la catégorie "${categoryToDelete?.name_fr}" ? Cette action est irréversible.`
-            : `Are you sure you want to delete the category "${categoryToDelete?.name_en || categoryToDelete?.name_fr}"? This action cannot be undone.`
+            ? categoryToDelete &&
+              (categories.some((c) => c.parent_id === categoryToDelete.id) ||
+                menuItems.some((i) => i.category_id === categoryToDelete.id))
+              ? `Attention : la catégorie "${categoryToDelete.name_fr}" contient des articles ou sous-catégories. Sa suppression supprimera également tous ces éléments du menu. Cette action est irréversible.`
+              : `Voulez-vous vraiment supprimer la catégorie "${categoryToDelete?.name_fr}" ? Cette action est irréversible.`
+            : categoryToDelete &&
+              (categories.some((c) => c.parent_id === categoryToDelete.id) ||
+                menuItems.some((i) => i.category_id === categoryToDelete.id))
+            ? `Warning: Category "${categoryToDelete.name_en || categoryToDelete.name_fr}" contains items or subcategories. Deleting it will also remove all associated items from the menu. This action cannot be undone.`
+            : `Are you sure you want to delete category "${categoryToDelete?.name_en || categoryToDelete?.name_fr}"? This action cannot be undone.`
         }
         confirmLabel={language === 'fr' ? 'Supprimer' : 'Delete'}
         cancelLabel={language === 'fr' ? 'Annuler' : 'Cancel'}

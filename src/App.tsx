@@ -369,11 +369,16 @@ export function App() {
 
   // If authenticated as staff member, display the dedicated internal workspace
   if (!authLoading && user && role) {
-    if (role === 'cuisine') {
-      return <KitchenWorkspace onLogout={signOut} />;
-    }
     if (role === 'admin') {
       return <AdminDashboard onLogout={signOut} />;
+    }
+    if (
+      role === 'cuisine' ||
+      (role as string) === 'caisse' ||
+      (role as string) === 'cashier' ||
+      (role as string) === 'bar'
+    ) {
+      return <KitchenWorkspace onLogout={signOut} />;
     }
   }
 

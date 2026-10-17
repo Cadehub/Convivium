@@ -153,6 +153,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.auth.signOut();
           return { error: 'Compte non autorisé ou inactif pour le personnel.' };
         }
+        setUser(data.user);
+        if (data.session) {
+          setSession(data.session);
+        }
       }
 
       return { error: null };
@@ -181,7 +185,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const role = profile?.is_active ? profile.role : null;
+  const rawRole = profile?.is_active ? (profile.role as unknown as string) : null;
+  const role: UserRole | null =
+    rawRole === 'admin'
+      ? 'admin'
+      : rawRole === 'cuisine' ||
+        rawRole === 'caisse' ||
+        rawRole === 'cashier' ||
+        rawRole === 'bar'
+      ? 'cuisine'
+      : null;
   const isAdmin = role === 'admin';
   const isCuisine = role === 'cuisine';
 
