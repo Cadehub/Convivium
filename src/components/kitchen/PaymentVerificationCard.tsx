@@ -975,7 +975,7 @@ export const PaymentVerificationCard: React.FC<PaymentVerificationCardProps> = (
                             }`}
                           />
                           <span
-                            className={`block text-[11px] truncate ${
+                            className={`block text-[10px] sm:text-[11px] truncate ${
                               isDone
                                 ? 'font-semibold text-hotel-text'
                                 : 'text-hotel-muted'

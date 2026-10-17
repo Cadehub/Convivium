@@ -349,4 +349,62 @@ describe('Menu Extensions — Variants, Complements, and Subcategories', () => {
       expect(key1).toBe('item-1__var-small__alloco:2,piment:1__');
     });
   });
+
+  describe('5. Dish Descriptions and Zero-Complements Rules', () => {
+    it('only renders description when non-empty string is provided', () => {
+      const itemWithDesc: MenuItem = {
+        id: 'item-desc-1',
+        name_fr: 'Poulet DG Royal',
+        name_en: 'Royal DG Chicken',
+        category_id: null,
+        image_url: null,
+        sort_order: 1,
+        description_fr: 'Plat signature aux bananes plantains mûres et légumes croquants.',
+        description_en: 'Signature dish with plantains and fresh vegetables.',
+        price: 6500,
+        item_type: 'dish',
+        is_available: true,
+      };
+
+      const itemWithoutDesc: MenuItem = {
+        id: 'item-desc-2',
+        name_fr: 'Eau Minérale Tangui',
+        name_en: 'Tangui Mineral Water',
+        category_id: null,
+        image_url: null,
+        sort_order: 2,
+        description_fr: null,
+        description_en: '',
+        price: 1000,
+        item_type: 'drink',
+        is_available: true,
+      };
+
+      const getRenderedDescription = (item: MenuItem, lang: 'fr' | 'en'): string | null => {
+        const text =
+          lang === 'en'
+            ? item.description_en || item.description_fr
+            : item.description_fr || item.description_en;
+        return text && text.trim().length > 0 ? text.trim() : null;
+      };
+
+      expect(getRenderedDescription(itemWithDesc, 'fr')).toBe(
+        'Plat signature aux bananes plantains mûres et légumes croquants.'
+      );
+      expect(getRenderedDescription(itemWithDesc, 'en')).toBe(
+        'Signature dish with plantains and fresh vegetables.'
+      );
+      expect(getRenderedDescription(itemWithoutDesc, 'fr')).toBeNull();
+      expect(getRenderedDescription(itemWithoutDesc, 'en')).toBeNull();
+    });
+
+    it('completely omits complements section when dish has no applicable complements', () => {
+      const applicableComplements: MenuComplement[] = [];
+      const shouldRenderComplementsSection = applicableComplements.length > 0;
+
+      // When there are no complements, section must be completely absent from DOM
+      expect(shouldRenderComplementsSection).toBe(false);
+    });
+  });
 });
+

@@ -27,6 +27,8 @@ export const menuService = {
         category_id,
         name_fr,
         name_en,
+        description_fr,
+        description_en,
         item_type,
         price,
         has_variants,
@@ -85,6 +87,8 @@ export const menuService = {
         category_id,
         name_fr,
         name_en,
+        description_fr,
+        description_en,
         item_type,
         price,
         has_variants,
@@ -201,6 +205,8 @@ export const menuService = {
   async createMenuItem(item: {
     name_fr: string;
     name_en?: string;
+    description_fr?: string | null;
+    description_en?: string | null;
     category_id: string;
     item_type: 'dish' | 'drink' | 'other';
     price?: number | null;
@@ -235,6 +241,8 @@ export const menuService = {
       .insert({
         name_fr: item.name_fr.trim(),
         name_en: item.name_en ? item.name_en.trim() : null,
+        description_fr: item.description_fr ? item.description_fr.trim() : null,
+        description_en: item.description_en ? item.description_en.trim() : null,
         category_id: item.category_id,
         item_type: item.item_type,
         price: safePrice,
@@ -244,7 +252,7 @@ export const menuService = {
         preparation_time_minutes: prepMins,
         sort_order: item.sort_order ?? 0,
       })
-      .select('id, category_id, name_fr, name_en, item_type, price, has_variants, image_url, is_available, preparation_time_minutes, sort_order, created_at, updated_at')
+      .select('id, category_id, name_fr, name_en, description_fr, description_en, item_type, price, has_variants, image_url, is_available, preparation_time_minutes, sort_order, created_at, updated_at')
       .single();
 
     if (error) throw error;
@@ -255,7 +263,7 @@ export const menuService = {
   // Staff: Update menu item
   async updateMenuItem(
     id: string,
-    updates: Partial<Pick<MenuItem, 'name_fr' | 'name_en' | 'category_id' | 'item_type' | 'price' | 'has_variants' | 'image_url' | 'is_available' | 'preparation_time_minutes' | 'sort_order'>>
+    updates: Partial<Pick<MenuItem, 'name_fr' | 'name_en' | 'description_fr' | 'description_en' | 'category_id' | 'item_type' | 'price' | 'has_variants' | 'image_url' | 'is_available' | 'preparation_time_minutes' | 'sort_order'>>
   ): Promise<void> {
     const payload: Record<string, unknown> = { ...updates };
     if ('price' in payload) {
@@ -263,6 +271,12 @@ export const menuService = {
         payload.price !== undefined && payload.price !== null && !isNaN(Number(payload.price))
           ? Math.round(Number(payload.price))
           : null;
+    }
+    if ('description_fr' in payload && typeof payload.description_fr === 'string') {
+      payload.description_fr = payload.description_fr.trim() || null;
+    }
+    if ('description_en' in payload && typeof payload.description_en === 'string') {
+      payload.description_en = payload.description_en.trim() || null;
     }
     if ('preparation_time_minutes' in payload) {
       const rawPrep = payload.preparation_time_minutes;

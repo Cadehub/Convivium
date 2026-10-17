@@ -483,18 +483,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Kitchen Notes */}
+          {/* Kitchen Notes / Special instructions */}
           <div>
             <label className="block text-xs font-semibold text-hotel-text mb-1.5">
               {t.specialNotes}{' '}
               <span className="font-normal text-hotel-muted">({t.optional})</span>
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t.specialNotesPlaceholder}
-              className="input-hotel resize-none"
+              className="w-full text-xs sm:text-sm p-3 rounded-xl border border-hotel-border focus:border-[#9A721C] focus:ring-1 focus:ring-[#9A721C] outline-hidden leading-relaxed resize-y bg-white"
             />
           </div>
 

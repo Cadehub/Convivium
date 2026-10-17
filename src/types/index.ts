@@ -62,6 +62,8 @@ export interface MenuItem {
   category_id: string | null;
   name_fr: string;
   name_en: string | null;
+  description_fr?: string | null;
+  description_en?: string | null;
   item_type: MenuItemType;
   price: number | null; // in XAF (integer, optional if item has variants)
   has_variants?: boolean;

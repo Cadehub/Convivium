@@ -126,22 +126,22 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
           {/* Solid Opaque Category pill on top-left */}
           {categoryName && (
-            <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-md bg-[#FAF6EE] border border-[#D8C79A] text-[10px] font-bold uppercase tracking-wider text-[#8A6214] shadow-xs truncate max-w-[80%]">
+            <span className="absolute top-2 left-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-[#FAF6EE] border border-[#D8C79A] text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#8A6214] shadow-xs truncate max-w-[55%]">
               {categoryName}
             </span>
           )}
 
           {/* Preparation Time pill on bottom-left when defined */}
           {prepMinutes && (
-            <span className="absolute bottom-2 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] text-[10px] font-semibold shadow-xs">
-              <Clock className="w-3 h-3 text-[#C59B27] shrink-0" />
+            <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] text-[9px] sm:text-[10px] font-semibold shadow-xs">
+              <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#C59B27] shrink-0" />
               <span>{prepMinutes} min</span>
             </span>
           )}
 
           {/* Total quantity in cart badge */}
           {totalQuantityInCart > 0 && item.is_available && (
-            <span className="absolute top-2.5 right-2.5 min-w-[24px] h-6 px-1.5 rounded-full bg-[#C59B27] text-stone-950 text-xs font-bold flex items-center justify-center shadow-xs">
+            <span className="absolute top-2 right-2 min-w-[20px] sm:min-w-[24px] h-5 sm:h-6 px-1.5 rounded-full bg-[#C59B27] text-stone-950 text-[10px] sm:text-xs font-bold flex items-center justify-center shadow-xs">
               {totalQuantityInCart}
             </span>
           )}
@@ -170,11 +170,20 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 {displayedPriceText}
               </p>
               {hasVariants && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200 shrink-0">
                   {activeVariants.length} {t.variants.toLowerCase()}
                 </span>
               )}
             </div>
+
+            {/* Optional Dish Description: only rendered if non-empty */}
+            {Boolean(language === 'en' ? (item.description_en || item.description_fr) : (item.description_fr || item.description_en)) && (
+              <p className="text-[11px] sm:text-xs text-hotel-secondary line-clamp-2 mt-1 leading-snug">
+                {language === 'en'
+                  ? (item.description_en || item.description_fr)
+                  : (item.description_fr || item.description_en)}
+              </p>
+            )}
           </div>
 
           {/* Add / Customization Controls */}
@@ -187,40 +196,40 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 <button
                   type="button"
                   onClick={handleSimpleAdd}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle"
+                  className="w-full inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                  <SlidersHorizontal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
                   <span className="truncate">{t.customizeDish}</span>
                 </button>
               ) : totalQuantityInCart > 0 ? (
-                <div className="flex items-center justify-between rounded-lg border border-[#C59B27] bg-[#FBF7EE] p-1">
+                <div className="flex items-center justify-between rounded-lg border border-[#C59B27] bg-[#FBF7EE] p-0.5 sm:p-1">
                   <button
                     type="button"
                     onClick={() => updateQuantity(item.id, totalQuantityInCart - 1)}
                     aria-label={language === 'fr' ? 'Diminuer la quantité' : 'Decrease quantity'}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
                   >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   </button>
-                  <span className="text-xs sm:text-sm font-bold text-hotel-text">
+                  <span className="text-[11px] sm:text-sm font-bold text-hotel-text px-1">
                     {totalQuantityInCart}
                   </span>
                   <button
                     type="button"
                     onClick={() => addItem(item, 1)}
                     aria-label={language === 'fr' ? 'Augmenter la quantité' : 'Increase quantity'}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   </button>
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={handleSimpleAdd}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle"
+                  className="w-full inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
                 >
-                  <Plus className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                  <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
                   <span className="truncate">{t.addToCart}</span>
                 </button>
               )

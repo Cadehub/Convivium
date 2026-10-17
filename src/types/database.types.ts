@@ -202,6 +202,8 @@ export type Database = {
         Row: {
           category_id: string | null
           created_at: string
+          description_en: string | null
+          description_fr: string | null
           has_variants: boolean
           id: string
           image_url: string | null
@@ -217,6 +219,8 @@ export type Database = {
         Insert: {
           category_id?: string | null
           created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
           has_variants?: boolean
           id?: string
           image_url?: string | null
@@ -232,6 +236,8 @@ export type Database = {
         Update: {
           category_id?: string | null
           created_at?: string
+          description_en?: string | null
+          description_fr?: string | null
           has_variants?: boolean
           id?: string
           image_url?: string | null

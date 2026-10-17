@@ -90,6 +90,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [itemNameFr, setItemNameFr] = useState('');
   const [itemNameEn, setItemNameEn] = useState('');
+  const [itemDescriptionFr, setItemDescriptionFr] = useState('');
+  const [itemDescriptionEn, setItemDescriptionEn] = useState('');
   const [itemCategoryId, setItemCategoryId] = useState('');
   const [itemType, setItemType] = useState<'dish' | 'drink'>('dish');
   const [itemPrice, setItemPrice] = useState<number>(0);
@@ -449,6 +451,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
         await menuService.updateMenuItem(editingItem.id, {
           name_fr: itemNameFr.trim(),
           name_en: itemNameEn.trim() || null,
+          description_fr: itemDescriptionFr.trim() || null,
+          description_en: itemDescriptionEn.trim() || null,
           category_id: itemCategoryId,
           item_type: itemType,
           price: finalBasePrice,
@@ -495,6 +499,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
         const created = await menuService.createMenuItem({
           name_fr: itemNameFr.trim(),
           name_en: itemNameEn.trim() || undefined,
+          description_fr: itemDescriptionFr.trim() || undefined,
+          description_en: itemDescriptionEn.trim() || undefined,
           category_id: itemCategoryId,
           item_type: itemType,
           price: finalBasePrice,
@@ -1030,6 +1036,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                     setEditingItem(null);
                     setItemNameFr('');
                     setItemNameEn('');
+                    setItemDescriptionFr('');
+                    setItemDescriptionEn('');
                     setItemPrice(0);
                     setItemHasVariants(false);
                     setItemVariants([]);
@@ -1144,7 +1152,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
 
                             {/* Solid Non-Transparent Category Badge */}
                             {catObj && (
-                              <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-md bg-[#FAF6EE] border border-[#D8C79A] shadow-2xs text-[10px] font-bold uppercase tracking-wider text-[#8A6214] truncate max-w-[65%]">
+                              <span className="absolute top-2 left-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-[#FAF6EE] border border-[#D8C79A] shadow-2xs text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#8A6214] truncate max-w-[50%]">
                                 {language === 'en' && catObj.name_en
                                   ? catObj.name_en
                                   : catObj.name_fr}
@@ -1152,7 +1160,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                             )}
 
                             <span
-                              className={`absolute top-2.5 right-2.5 ${
+                              className={`absolute top-2 right-2 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] rounded-full ${
                                 item.is_available
                                   ? 'badge-paid shadow-2xs'
                                   : 'badge-neutral shadow-2xs'
@@ -1164,13 +1172,13 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                             {/* Optional Preparation Time Badge */}
                             {typeof item.preparation_time_minutes === 'number' &&
                               item.preparation_time_minutes > 0 && (
-                                <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1C1917] text-[#FBF7EE] text-[10px] font-semibold shadow-2xs">
-                                  <Clock className="w-3 h-3 text-[#D4AF37]" />
+                                <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-[#1C1917] text-[#FBF7EE] text-[9px] sm:text-[10px] font-semibold shadow-2xs">
+                                  <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#D4AF37]" />
                                   <span>{item.preparation_time_minutes} min</span>
                                 </span>
                               )}
 
-                            <span className="absolute bottom-2.5 right-2.5 w-7 h-7 rounded-full bg-white border border-hotel-border shadow-2xs flex items-center justify-center text-hotel-secondary group-hover/img:text-[#9A721C] transition-colors">
+                            <span className="absolute bottom-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border border-hotel-border shadow-2xs hidden sm:flex items-center justify-center text-hotel-secondary group-hover/img:text-[#9A721C] transition-colors">
                               <ZoomIn className="w-3.5 h-3.5" />
                             </span>
                           </div>
@@ -1199,7 +1207,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                               </div>
                             </div>
 
-                            <div className="mt-3 pt-3 border-t border-hotel-border grid grid-cols-3 gap-1.5 sm:gap-2">
+                            <div className="mt-3 pt-3 border-t border-hotel-border grid grid-cols-3 gap-1 sm:gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1216,7 +1224,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                                     .then(loadMenu)
                                     .catch(loadMenu);
                                 }}
-                                className="btn-outline-gold py-1.5 px-1.5 sm:px-2 text-[11px] sm:text-xs justify-center"
+                                className="btn-outline-gold py-1.5 px-1 sm:px-2 text-[10px] sm:text-xs justify-center min-w-0"
                               >
                                 {item.is_available ? (
                                   <>
@@ -1241,6 +1249,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                                   setEditingItem(item);
                                   setItemNameFr(item.name_fr);
                                   setItemNameEn(item.name_en || '');
+                                  setItemDescriptionFr(item.description_fr || '');
+                                  setItemDescriptionEn(item.description_en || '');
                                   setItemPrice(item.price ?? 0);
                                   setItemHasVariants(
                                     item.has_variants ||
@@ -1262,7 +1272,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                                   setItemType(item.item_type as 'dish' | 'drink');
                                   setIsItemModalOpen(true);
                                 }}
-                                className="btn-outline-gold py-1.5 px-1.5 sm:px-2 text-[11px] sm:text-xs justify-center"
+                                className="btn-outline-gold py-1.5 px-1 sm:px-2 text-[10px] sm:text-xs justify-center min-w-0"
                               >
                                 <Edit className="w-3.5 h-3.5 shrink-0 text-[#9A721C]" />
                                 <span className="truncate">{t.edit}</span>
@@ -1271,7 +1281,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                               <button
                                 type="button"
                                 onClick={() => setItemToDelete(item)}
-                                className="py-1.5 px-1.5 sm:px-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-700 text-[11px] sm:text-xs font-medium inline-flex items-center justify-center gap-1 transition-colors"
+                                className="py-1.5 px-1 sm:px-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-700 text-[10px] sm:text-xs font-medium inline-flex items-center justify-center gap-1 transition-colors min-w-0"
                                 title={t.delete}
                               >
                                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -1610,6 +1620,32 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                   value={itemNameEn}
                   onChange={(e) => setItemNameEn(e.target.value)}
                   className="input-hotel"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-hotel-text mb-1.5">
+                  {t.itemDescriptionFr}
+                </label>
+                <textarea
+                  rows={2}
+                  value={itemDescriptionFr}
+                  onChange={(e) => setItemDescriptionFr(e.target.value)}
+                  placeholder={t.itemDescriptionPlaceholder}
+                  className="input-hotel resize-none leading-relaxed text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-hotel-text mb-1.5">
+                  {t.itemDescriptionEn}
+                </label>
+                <textarea
+                  rows={2}
+                  value={itemDescriptionEn}
+                  onChange={(e) => setItemDescriptionEn(e.target.value)}
+                  placeholder="Ingredients, flavors, main sides..."
+                  className="input-hotel resize-none leading-relaxed text-xs"
                 />
               </div>
 

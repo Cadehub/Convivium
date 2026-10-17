@@ -150,7 +150,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
 
         {/* Modal Scrollable Content */}
         <div className="p-4 sm:p-5 max-h-[60vh] overflow-y-auto space-y-5">
-          {/* Title & Base Price */}
+          {/* Title, Base Price & Optional Dish Description */}
           <div>
             <h3 className="font-serif text-lg sm:text-xl font-bold text-hotel-text">
               {displayName}
@@ -158,6 +158,14 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
             <p className="text-sm font-semibold text-[#9A721C] mt-1 font-mono">
               {formatXAF(unitPrice)}
             </p>
+            {/* Dish Description: Only shown if entered, hidden otherwise */}
+            {Boolean(language === 'en' ? (item.description_en || item.description_fr) : (item.description_fr || item.description_en)) && (
+              <p className="mt-2 text-xs sm:text-sm text-hotel-secondary leading-relaxed bg-[#FAF8F5] p-3 rounded-xl border border-hotel-border/60">
+                {language === 'en'
+                  ? (item.description_en || item.description_fr)
+                  : (item.description_fr || item.description_en)}
+              </p>
+            )}
           </div>
 
           {/* 1. Variants Selection (if item has variants) */}
@@ -213,18 +221,18 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
             </div>
           )}
 
-          {/* 2. Complements Selection */}
-          <div className="space-y-2.5 pt-2 border-t border-hotel-border">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-hotel-text">
-                {t.complements}
-              </span>
-              <p className="text-[11px] text-hotel-secondary mt-0.5">
-                {t.complementsSubtitle}
-              </p>
-            </div>
+          {/* 2. Complements Selection (ONLY rendered if product has applicable complements) */}
+          {applicableComplements.length > 0 && (
+            <div className="space-y-2.5 pt-2 border-t border-hotel-border">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-hotel-text">
+                  {t.complements}
+                </span>
+                <p className="text-[11px] text-hotel-secondary mt-0.5">
+                  {t.complementsSubtitle}
+                </p>
+              </div>
 
-            {applicableComplements.length > 0 ? (
               <div className="space-y-2">
                 {applicableComplements.map((comp) => {
                   const compName = language === 'en' && comp.name_en ? comp.name_en : comp.name_fr;
@@ -269,33 +277,25 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
                   );
                 })}
               </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-600 text-xs flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-white border border-stone-200 flex items-center justify-center shrink-0 text-[#9A721C]">
-                  <Utensils className="w-3.5 h-3.5" />
-                </div>
-                <span>
-                  {language === 'fr'
-                    ? 'Aucun complément ou sauce n’est associé à ce plat.'
-                    : 'No additional sauces or sides available for this dish.'}
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* 3. Special Notes / Instructions */}
+          {/* 3. Special Notes / Instructions (Spacious multi-line textarea) */}
           <div className="space-y-1.5 pt-2 border-t border-hotel-border">
-            <label className="text-xs font-medium text-hotel-secondary">
-              {t.specialNotes} ({t.optional})
+            <label className="text-xs font-semibold text-hotel-text block">
+              {t.specialNotes} <span className="font-normal text-hotel-secondary">({t.optional})</span>
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder={language === 'fr' ? 'Ex: Bien cuit, sans piment...' : 'e.g. Well cooked, no chili...'}
-              className="w-full text-xs px-3 py-2 rounded-lg border border-hotel-border focus:border-[#9A721C] outline-hidden"
-              maxLength={150}
+              placeholder={language === 'fr' ? 'Ex: Cuisson à point, sauce à part, sans piment...' : 'e.g. Medium well, sauce on the side, no chili...'}
+              className="w-full text-xs sm:text-sm p-3 rounded-xl border border-hotel-border focus:border-[#9A721C] focus:ring-1 focus:ring-[#9A721C] outline-hidden leading-relaxed resize-y bg-white"
+              maxLength={250}
             />
+            <p className="text-[11px] text-hotel-muted text-right">
+              {notes.length}/250
+            </p>
           </div>
         </div>
 
