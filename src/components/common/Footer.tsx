@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Phone, MapPin } from 'lucide-react';
+import { Lock, MapPin } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface FooterProps {
@@ -7,53 +7,56 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onOpenStaffLogin }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   return (
-    <footer className="bg-hotel-black border-t border-hotel-cardBorder mt-20">
-      {/* Decorative Greek Meander line */}
-      <div className="border-greek-pattern opacity-60 w-full" />
-
+    <footer className="bg-white border-t border-hotel-border mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {/* Brand Info */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-serif text-lg font-bold text-hotel-text">
-                CONVIVIUM HOME HOTEL
-              </span>
-              <span className="text-xs font-serif text-hotel-gold font-bold">★★★</span>
-            </div>
-            <p className="text-xs text-hotel-muted leading-relaxed max-w-sm">
-              {t.tagline}
-            </p>
-          </div>
-
-          {/* Contact & Location in Cameroon */}
-          <div className="space-y-2 text-xs text-hotel-muted">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-hotel-gold flex-shrink-0" />
-              <span>Cameroun — Douala / Yaoundé</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-hotel-gold flex-shrink-0" />
-              <span>Service Réception & Commandes</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-8 border-b border-hotel-border">
+          <div className="flex items-center gap-3.5">
+            <img
+              src="/logo.jpg"
+              alt="Convivium Home Hotel"
+              className="w-11 h-11 rounded-full object-cover border border-stone-200 shrink-0"
+            />
+            <div>
+              <h3 className="font-serif text-lg font-semibold text-hotel-text leading-tight">
+                Convivium Home Hotel
+              </h3>
+              <p className="text-xs text-hotel-muted flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3.5 h-3.5 text-[#9A721C]" />
+                <span>Douala, Cameroun — {t.tagline}</span>
+              </p>
             </div>
           </div>
 
-          {/* Discreet Staff Portal & Copyright */}
-          <div className="flex flex-col md:items-end justify-between space-y-4">
-            <button
-              onClick={onOpenStaffLogin}
-              className="inline-flex items-center gap-1.5 text-xs text-hotel-muted/70 hover:text-hotel-gold transition-colors py-1 px-2.5 rounded border border-hotel-cardBorder/50 hover:border-hotel-gold/40"
-            >
-              <Lock className="w-3 h-3 text-hotel-gold" />
-              <span>{t.navStaff}</span>
-            </button>
-            <p className="text-[11px] text-hotel-muted/60">
-              © {new Date().getFullYear()} Convivium Home Hotel. Tous droits réservés.
-            </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-hotel-secondary">
+            <span className="px-2.5 py-1 rounded-md bg-hotel-subtle border border-hotel-border font-medium">
+              Orange Money
+            </span>
+            <span className="px-2.5 py-1 rounded-md bg-hotel-subtle border border-hotel-border font-medium">
+              MTN Mobile Money
+            </span>
+            <span className="px-2.5 py-1 rounded-md bg-hotel-subtle border border-hotel-border font-medium">
+              {language === 'fr' ? 'Service en salle, chambre & livraison' : 'Dine-in, Room Service & Delivery'}
+            </span>
           </div>
+        </div>
+
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hotel-muted">
+          <p>
+            © {new Date().getFullYear()} Convivium Home Hotel.{' '}
+            {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}
+          </p>
+
+          <button
+            type="button"
+            onClick={onOpenStaffLogin}
+            className="inline-flex items-center gap-1.5 text-hotel-muted hover:text-hotel-text transition-colors py-1 px-2 rounded"
+          >
+            <Lock className="w-3 h-3" />
+            <span>{t.navStaff}</span>
+          </button>
         </div>
       </div>
     </footer>

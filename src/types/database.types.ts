@@ -54,6 +54,7 @@ export type Database = {
           is_active: boolean
           name_en: string | null
           name_fr: string
+          parent_id: string | null
           sort_order: number
         }
         Insert: {
@@ -62,6 +63,7 @@ export type Database = {
           is_active?: boolean
           name_en?: string | null
           name_fr: string
+          parent_id?: string | null
           sort_order?: number
         }
         Update: {
@@ -70,18 +72,25 @@ export type Database = {
           is_active?: boolean
           name_en?: string | null
           name_fr?: string
+          parent_id?: string | null
           sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "menu_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "menu_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      menu_items: {
+      menu_complements: {
         Row: {
-          category_id: string | null
           created_at: string
           id: string
-          image_url: string | null
-          is_available: boolean
-          item_type: string
+          is_active: boolean
+          is_all_categories: boolean
           name_en: string | null
           name_fr: string
           price: number
@@ -89,28 +98,149 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_all_categories?: boolean
+          name_en?: string | null
+          name_fr: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_all_categories?: boolean
+          name_en?: string | null
+          name_fr?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      menu_complement_categories: {
+        Row: {
+          category_id: string
+          complement_id: string
+          created_at: string
+        }
+        Insert: {
+          category_id: string
+          complement_id: string
+          created_at?: string
+        }
+        Update: {
+          category_id?: string
+          complement_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_complement_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "menu_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_complement_categories_complement_id_fkey"
+            columns: ["complement_id"]
+            isOneToOne: false
+            referencedRelation: "menu_complements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_item_variants: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          menu_item_id: string
+          name_en: string | null
+          name_fr: string
+          price: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          menu_item_id: string
+          name_en?: string | null
+          name_fr: string
+          price?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          menu_item_id?: string
+          name_en?: string | null
+          name_fr?: string
+          price?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_variants_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_items: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          has_variants: boolean
+          id: string
+          image_url: string | null
+          is_available: boolean
+          item_type: string
+          name_en: string | null
+          name_fr: string
+          preparation_time_minutes: number | null
+          price: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
           category_id?: string | null
           created_at?: string
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_available?: boolean
           item_type?: string
           name_en?: string | null
           name_fr: string
-          price: number
+          preparation_time_minutes?: number | null
+          price?: number | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
           category_id?: string | null
           created_at?: string
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_available?: boolean
           item_type?: string
           name_en?: string | null
           name_fr?: string
-          price?: number
+          preparation_time_minutes?: number | null
+          price?: number | null
           sort_order?: number
           updated_at?: string
         }
@@ -131,9 +261,12 @@ export type Database = {
           menu_item_id: string | null
           order_id: string
           quantity: number
+          selected_complements: Json
           special_notes: string | null
           subtotal: number
           unit_price: number
+          variant_id: string | null
+          variant_name: string | null
         }
         Insert: {
           id?: string
@@ -141,9 +274,12 @@ export type Database = {
           menu_item_id?: string | null
           order_id: string
           quantity: number
+          selected_complements?: Json
           special_notes?: string | null
           subtotal: number
           unit_price: number
+          variant_id?: string | null
+          variant_name?: string | null
         }
         Update: {
           id?: string
@@ -151,9 +287,12 @@ export type Database = {
           menu_item_id?: string | null
           order_id?: string
           quantity?: number
+          selected_complements?: Json
           special_notes?: string | null
           subtotal?: number
           unit_price?: number
+          variant_id?: string | null
+          variant_name?: string | null
         }
         Relationships: [
           {
@@ -170,6 +309,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "menu_item_variants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       orders: {
@@ -179,6 +325,8 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           delivery_address: string | null
+          delivery_fee: number | null
+          delivery_schedule_type: string | null
           id: string
           idempotency_key: string | null
           notes: string | null
@@ -188,6 +336,7 @@ export type Database = {
           preparation_status: string
           public_reference: string
           room_number: string | null
+          scheduled_delivery_time: string | null
           table_number: string | null
           total_amount: number
           updated_at: string
@@ -198,6 +347,8 @@ export type Database = {
           customer_name: string
           customer_phone?: string | null
           delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_schedule_type?: string | null
           id?: string
           idempotency_key?: string | null
           notes?: string | null
@@ -207,6 +358,7 @@ export type Database = {
           preparation_status?: string
           public_reference: string
           room_number?: string | null
+          scheduled_delivery_time?: string | null
           table_number?: string | null
           total_amount: number
           updated_at?: string
@@ -217,6 +369,8 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_schedule_type?: string | null
           id?: string
           idempotency_key?: string | null
           notes?: string | null
@@ -226,6 +380,7 @@ export type Database = {
           preparation_status?: string
           public_reference?: string
           room_number?: string | null
+          scheduled_delivery_time?: string | null
           table_number?: string | null
           total_amount?: number
           updated_at?: string
@@ -282,6 +437,7 @@ export type Database = {
           is_active: boolean
           is_tested_on_device: boolean
           merchant_code: string
+          phone_number: string | null
           updated_at: string
           ussd_mode: string
         }
@@ -293,6 +449,7 @@ export type Database = {
           is_active?: boolean
           is_tested_on_device?: boolean
           merchant_code?: string
+          phone_number?: string | null
           updated_at?: string
           ussd_mode?: string
         }
@@ -304,6 +461,7 @@ export type Database = {
           is_active?: boolean
           is_tested_on_device?: boolean
           merchant_code?: string
+          phone_number?: string | null
           updated_at?: string
           ussd_mode?: string
         }
@@ -384,6 +542,7 @@ export type Database = {
       restaurant_settings: {
         Row: {
           currency: string
+          delivery_fee: number | null
           hotel_address: string
           hotel_name: string
           hotel_phone: string | null
@@ -393,6 +552,7 @@ export type Database = {
         }
         Insert: {
           currency?: string
+          delivery_fee?: number | null
           hotel_address?: string
           hotel_name?: string
           hotel_phone?: string | null
@@ -402,6 +562,7 @@ export type Database = {
         }
         Update: {
           currency?: string
+          delivery_fee?: number | null
           hotel_address?: string
           hotel_name?: string
           hotel_phone?: string | null
@@ -416,6 +577,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_order_client: {
+        Args: {
+          p_public_reference: string
+          p_raw_token: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      clear_orders_history: {
+        Args: {
+          p_scope?: string
+        }
+        Returns: Json
+      }
       confirm_payment: {
         Args: {
           p_order_id: string
@@ -437,7 +612,44 @@ export type Database = {
         }
         Returns: Json
       }
+      create_order_with_schedule: {
+        Args: {
+          p_customer_name: string
+          p_customer_phone?: string
+          p_order_mode: string
+          p_location_detail: string
+          p_notes: string
+          p_items: Json
+          p_idempotency_key: string
+          p_raw_token: string
+          p_delivery_schedule_type?: string
+          p_scheduled_delivery_time?: string | null
+        }
+        Returns: Json
+      }
       current_user_role: { Args: never; Returns: string }
+      register_staff_push_subscription: {
+        Args: { p_token: string; p_language?: string; p_user_agent?: string }
+        Returns: Json
+      }
+      unregister_staff_push_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      register_client_push_subscription: {
+        Args: {
+          p_public_reference: string
+          p_raw_token: string
+          p_fcm_token: string
+          p_language?: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
+      unregister_client_push_subscription: {
+        Args: { p_public_reference: string; p_raw_token: string; p_fcm_token: string }
+        Returns: Json
+      }
       get_client_order: {
         Args: { p_public_reference: string; p_raw_token: string }
         Returns: Json

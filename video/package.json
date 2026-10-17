@@ -1,0 +1,25 @@
+{
+  "name": "convivium-pizza-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Vidéo motion design promotionnelle des pizzas Convivium (Remotion)",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render ConviviumPizza out/convivium-pizza.mp4",
+    "still": "remotion still ConviviumPizza out/preview.png --frame=300"
+  },
+  "dependencies": {
+    "@fontsource/playfair-display": "^5.3.0",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@remotion/cli": "^4.0.536",
+    "@remotion/fonts": "^4.0.536",
+    "@remotion/transitions": "^4.0.536",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.536"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "typescript": "^7.0.2"
+  }
+}

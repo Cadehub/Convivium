@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { CategoryNav } from './components/menu/CategoryNav';
@@ -11,11 +11,19 @@ import { StaffLoginModal } from './components/staff/StaffLoginModal';
 import { KitchenWorkspace } from './components/kitchen/KitchenWorkspace';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { useAuth } from './context/AuthContext';
+import { useCart } from './context/CartContext';
 import { useLanguage } from './i18n/LanguageContext';
 import { menuService } from './services/menu.service';
 import { settingsService } from './services/settings.service';
 import { supabase } from './lib/supabase';
-import type { MenuCategory, MenuItem, RestaurantSettings } from './types';
+import { subscribeToLiveSyncEvents } from './lib/realtime';
+import { formatXAF } from './lib/formatters';
+import {
+  OPEN_NOTIFICATION_EVENT,
+  parseNotificationDeepLink,
+  stripNotificationParams,
+} from './lib/push';
+import type { MenuCategory, MenuItem, MenuComplement, RestaurantSettings } from './types';
 import type { CreateOrderResult } from './services/orders.service';
 import {
   getStoredClientOrderToken,
@@ -26,11 +34,23 @@ import {
   getPendingPaymentOrder,
   clearPendingPaymentOrder,
 } from './lib/security';
-import { UtensilsCrossed, Loader2, RefreshCw } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  Loader2,
+  RefreshCw,
+  ShoppingBag,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+} from 'lucide-react';
+
+const MENU_ITEMS_PER_PAGE = 12; // 2 columns x 6 rows
 
 export function App() {
   const { user, role, signOut, isLoading: authLoading } = useAuth();
-  const { t } = useLanguage();
+  const { totalItems, subtotal } = useCart();
+  const { language, t } = useLanguage();
 
   // Navigation State with localStorage persistence across page refreshes
   const [activeTab, setActiveTabState] = useState<'menu' | 'tracking'>(() => {
@@ -67,8 +87,8 @@ export function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isStaffLoginOpen, setIsStaffLoginOpen] = useState(false);
 
-  // Active pending payment modal order persisted across page reloads
-  const [activePaymentOrder, setActivePaymentOrderState] = useState<CreateOrderResult | null>(() => {
+  // Active pending payment order retained in memory & localStorage across page reloads
+  const [pendingPaymentOrder, setPendingPaymentOrderState] = useState<CreateOrderResult | null>(() => {
     try {
       return getPendingPaymentOrder<CreateOrderResult>();
     } catch {
@@ -76,8 +96,13 @@ export function App() {
     }
   });
 
-  const setActivePaymentOrder = (order: CreateOrderResult | null) => {
-    setActivePaymentOrderState(order);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(() => {
+    // If a pending order was stored, automatically show the modal on initial visit
+    return Boolean(getPendingPaymentOrder<CreateOrderResult>());
+  });
+
+  const setPendingPaymentOrder = (order: CreateOrderResult | null) => {
+    setPendingPaymentOrderState(order);
     if (order) {
       savePendingPaymentOrder(order);
     } else {
@@ -88,22 +113,30 @@ export function App() {
   // Data State
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [complements, setComplements] = useState<MenuComplement[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [menuPage, setMenuPage] = useState<number>(1);
   const [restaurantSettings, setRestaurantSettings] = useState<RestaurantSettings | null>(null);
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const hasLoadedMenuRef = useRef(false);
 
-  // Load public menu
-  const loadPublicData = async () => {
-    setIsLoadingMenu(true);
+  // Load public menu (silent=true updates in-place without unmounting or scrolling)
+  const loadPublicData = async (silent = true) => {
+    if (!hasLoadedMenuRef.current && !silent) {
+      setIsLoadingMenu(true);
+    }
     try {
-      const [cats, items, settings] = await Promise.all([
+      const [cats, items, comps, settings] = await Promise.all([
         menuService.getPublicCategories().catch(() => []),
         menuService.getPublicMenuItems().catch(() => []),
+        menuService.getPublicComplements().catch(() => []),
         settingsService.getRestaurantSettings().catch(() => null),
       ]);
       setCategories(cats);
       setMenuItems(items);
+      setComplements(comps);
       setRestaurantSettings(settings);
+      hasLoadedMenuRef.current = true;
     } catch (e) {
       console.error('Error loading public data', e);
     } finally {
@@ -112,37 +145,111 @@ export function App() {
   };
 
   useEffect(() => {
-    loadPublicData();
+    loadPublicData(false);
 
-    // Real-time synchronization for public menu catalog changes
+    // Real-time synchronization for public menu catalog & restaurant settings (delivery fee, active modes)
     const menuChannel = supabase
       .channel('public_menu_catalog_realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'menu_items' },
         () => {
-          loadPublicData();
+          loadPublicData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_item_variants' },
+        () => {
+          loadPublicData(true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'menu_categories' },
         () => {
-          loadPublicData();
+          loadPublicData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_complements' },
+        () => {
+          loadPublicData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_complement_categories' },
+        () => {
+          loadPublicData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurant_settings' },
+        () => {
+          loadPublicData(true);
         }
       )
       .subscribe();
 
+    const unsubscribeLive = subscribeToLiveSyncEvents((evt) => {
+      if (evt.type === 'catalog_updated') {
+        loadPublicData(true);
+      }
+    });
+
     return () => {
+      unsubscribeLive();
       supabase.removeChannel(menuChannel);
     };
   }, []);
 
-  // Filtered Menu Items
+  // Notification deep links: `/?n=track&ref=CVH-…` (opened from a push). Only a public reference
+  // is carried; the tracking view re-reads the real order from the server with the stored token.
+  useEffect(() => {
+    const apply = (link: { target: string; ref: string | null }) => {
+      if (link.target === 'track') {
+        if (link.ref) setTrackingReference(link.ref);
+        setActiveTab('tracking');
+      }
+      // kitchen / admin targets: the staff workspace is shown by the authenticated session itself.
+    };
+
+    const initial = parseNotificationDeepLink(window.location.search);
+    if (initial) {
+      apply(initial);
+      const cleaned = stripNotificationParams(window.location.search);
+      window.history.replaceState(null, '', `${window.location.pathname}${cleaned}${window.location.hash}`);
+    }
+
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ target: string; ref: string | null }>).detail;
+      if (detail) apply(detail);
+    };
+    window.addEventListener(OPEN_NOTIFICATION_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_NOTIFICATION_EVENT, onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filtered Menu Items: includes items in selected category or any of its subcategories
   const displayedItems = menuItems.filter((item) => {
     if (!selectedCategoryId) return true;
-    return item.category_id === selectedCategoryId;
+    if (item.category_id === selectedCategoryId) return true;
+    const childCategoryIds = categories
+      .filter((c) => c.parent_id === selectedCategoryId)
+      .map((c) => c.id);
+    return childCategoryIds.includes(item.category_id || '');
   });
+
+  const totalMenuPages = Math.max(1, Math.ceil(displayedItems.length / MENU_ITEMS_PER_PAGE));
+  const safeMenuPage = Math.min(menuPage, totalMenuPages);
+  const startIndex = (safeMenuPage - 1) * MENU_ITEMS_PER_PAGE;
+  const paginatedMenuItems = displayedItems.slice(
+    startIndex,
+    startIndex + MENU_ITEMS_PER_PAGE
+  );
 
   // Calculate counts per category
   const categoryItemCounts: Record<string, number> = {};
@@ -152,15 +259,38 @@ export function App() {
     }
   });
 
+  // Map category ID to localized name
+  const categoryNameMap: Record<string, string> = {};
+  categories.forEach((c) => {
+    categoryNameMap[c.id] = language === 'en' && c.name_en ? c.name_en : c.name_fr;
+  });
+
+  // Helper to determine applicable complements for a given product (with parent category inheritance)
+  const getApplicableComplementsForItem = (item: MenuItem): MenuComplement[] => {
+    if (!item.category_id) {
+      return complements.filter((c) => c.is_all_categories);
+    }
+    const itemCategory = categories.find((c) => c.id === item.category_id);
+    const parentId = itemCategory?.parent_id;
+
+    return complements.filter((c) => {
+      if (c.is_all_categories) return true;
+      const catIds = c.category_ids || [];
+      return catIds.includes(item.category_id!) || (parentId ? catIds.includes(parentId) : false);
+    });
+  };
+
   // Handle Order Created Callback
   const handleOrderCreated = (res: CreateOrderResult) => {
     setIsCheckoutOpen(false);
-    setActivePaymentOrder(res);
+    setPendingPaymentOrder(res);
+    setIsPaymentModalOpen(true);
   };
 
   // Handle Payment Declared Callback
   const handlePaymentDeclared = (publicRef: string) => {
-    setActivePaymentOrder(null);
+    setPendingPaymentOrder(null);
+    setIsPaymentModalOpen(false);
     setTrackingReference(publicRef);
     setActiveTab('tracking');
   };
@@ -176,7 +306,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-hotel-black text-hotel-text selection:bg-hotel-gold selection:text-hotel-black">
+    <div className="min-h-screen flex flex-col justify-between bg-hotel-bg text-hotel-text">
       {/* Header */}
       <Header
         activeTab={activeTab}
@@ -186,89 +316,290 @@ export function App() {
         }}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenStaffLogin={() => setIsStaffLoginOpen(true)}
+        pendingPaymentOrder={pendingPaymentOrder}
+        onOpenPendingPayment={() => setIsPaymentModalOpen(true)}
       />
 
       <main className="flex-1">
         {activeTab === 'menu' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            {/* Hero / Banner */}
-            <div className="text-center max-w-2xl mx-auto pt-4 sm:pt-8">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-hotel-surface border border-hotel-cardBorder text-hotel-gold text-xs font-semibold mb-4 shadow-sm">
-                <span>★★★</span>
-                <span>Convivium Home Hotel</span>
-                <span>★★★</span>
-              </div>
-              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-hotel-text">
-                {t.menuTitle}
-              </h1>
-              <p className="text-xs sm:text-sm text-hotel-muted mt-3 leading-relaxed">
-                {t.menuSubtitle}
-              </p>
-            </div>
+          <div>
+            {/* Editorial Menu Header */}
+            <div className="bg-white border-b border-hotel-border">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-[#9A721C] font-semibold mb-1.5">
+                      Convivium Home Hotel
+                    </p>
+                    <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-semibold text-hotel-text tracking-tight">
+                      {t.menuTitle}
+                    </h1>
+                    <p className="text-xs sm:text-sm text-hotel-secondary mt-1.5 max-w-xl">
+                      {t.menuSubtitle}
+                    </p>
+                  </div>
 
-            {/* Category Filter Pills */}
-            <div className="pt-4 border-t border-hotel-cardBorder/60">
-              <CategoryNav
-                categories={categories}
-                selectedCategoryId={selectedCategoryId}
-                onSelectCategory={setSelectedCategoryId}
-                categoryItemCounts={categoryItemCounts}
-              />
-            </div>
-
-            {/* Products Grid */}
-            {isLoadingMenu ? (
-              <div className="py-24 text-center text-hotel-muted">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto text-hotel-gold mb-3" />
-                <p className="text-xs">{t.loading}</p>
-              </div>
-            ) : displayedItems.length === 0 ? (
-              <div className="py-20 text-center hotel-card max-w-md mx-auto p-8">
-                <div className="w-16 h-16 rounded-full bg-hotel-surface flex items-center justify-center mx-auto mb-4 border border-hotel-cardBorder text-hotel-gold/50">
-                  <UtensilsCrossed className="w-8 h-8" />
+                  {pendingPaymentOrder ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPaymentModalOpen(true)}
+                      className="self-start sm:self-auto inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border-2 border-amber-400 text-xs font-bold text-amber-950 shadow-sm hover:bg-amber-100 transition-all animate-pulse"
+                    >
+                      <CreditCard className="w-4 h-4 text-amber-700 shrink-0" />
+                      <div className="text-left">
+                        <span className="block text-[11px] font-mono text-amber-800">
+                          {pendingPaymentOrder.public_reference} • {formatXAF(pendingPaymentOrder.total_amount)}
+                        </span>
+                        <span className="block text-xs font-bold text-amber-950">
+                          {language === 'fr'
+                            ? 'Revenir et finaliser le paiement'
+                            : 'Resume & finalize payment'}
+                        </span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-amber-700 shrink-0 ml-1" />
+                    </button>
+                  ) : trackingReference ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('tracking')}
+                      className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#FBF7EE] border border-[#E5D099] text-xs font-medium text-hotel-text hover:bg-[#F5EBD6] transition-colors"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#9A721C]" />
+                      <span>
+                        {language === 'fr' ? 'Suivre ma commande' : 'Track my order'}{' '}
+                        <strong className="font-mono">{trackingReference}</strong>
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#9A721C]" />
+                    </button>
+                  ) : null}
                 </div>
-                <h3 className="font-serif text-lg font-bold text-hotel-text mb-2">
-                  {selectedCategoryId ? t.noItemsAvailable : t.emptyMenuNotice}
-                </h3>
-                <p className="text-xs text-hotel-muted leading-relaxed">
-                  Notre chef et l'équipe de cuisine actualisent quotidiennement nos sélections.
-                </p>
-                <button
-                  onClick={loadPublicData}
-                  className="mt-6 btn-secondary text-xs flex items-center gap-1.5 mx-auto"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>{t.refresh}</span>
-                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {displayedItems.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
-                ))}
+            </div>
+
+            {/* Sticky Category Filter Bar */}
+            <div className="sticky top-14 sm:top-16 z-30 bg-[#FAF8F5]/95 backdrop-blur-sm border-b border-hotel-border">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                <CategoryNav
+                  categories={categories}
+                  selectedCategoryId={selectedCategoryId}
+                  onSelectCategory={(catId) => {
+                    setSelectedCategoryId(catId);
+                    setMenuPage(1);
+                  }}
+                  categoryItemCounts={categoryItemCounts}
+                />
               </div>
-            )}
+            </div>
+
+            {/* Products Grid (2 columns x 6 rows = 12 per page) */}
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 pb-28 sm:pb-12">
+              {isLoadingMenu ? (
+                <div className="py-20 text-center text-hotel-muted">
+                  <Loader2 className="w-7 h-7 animate-spin mx-auto text-[#9A721C] mb-3" />
+                  <p className="text-xs">{t.loading}</p>
+                </div>
+              ) : displayedItems.length === 0 ? (
+                <div className="py-12 sm:py-16 text-center hotel-card max-w-md mx-auto p-6 sm:p-8">
+                  <div className="w-12 h-12 rounded-full bg-hotel-subtle flex items-center justify-center mx-auto mb-3 border border-hotel-border text-[#9A721C]">
+                    <UtensilsCrossed className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-serif text-lg font-semibold text-hotel-text mb-1.5">
+                    {selectedCategoryId ? t.noItemsAvailable : t.emptyMenuNotice}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => loadPublicData(false)}
+                    className="mt-4 btn-outline-gold text-xs"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{t.refresh}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 2 Columns x 6 Rows Editorial Menu Cards Grid */}
+                  <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:gap-6">
+                    {paginatedMenuItems.map((item) => (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        categoryName={item.category_id ? categoryNameMap[item.category_id] : undefined}
+                        applicableComplements={getApplicableComplementsForItem(item)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Bar */}
+                  <div className="pt-4 border-t border-hotel-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-xs text-hotel-secondary">
+                      {language === 'fr' ? (
+                        <>
+                          Affichage de{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {startIndex + 1}
+                          </strong>{' '}
+                          à{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {Math.min(startIndex + MENU_ITEMS_PER_PAGE, displayedItems.length)}
+                          </strong>{' '}
+                          sur{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {displayedItems.length}
+                          </strong>{' '}
+                          articles (format 2 × 6)
+                        </>
+                      ) : (
+                        <>
+                          Showing{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {startIndex + 1}
+                          </strong>{' '}
+                          to{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {Math.min(startIndex + MENU_ITEMS_PER_PAGE, displayedItems.length)}
+                          </strong>{' '}
+                          of{' '}
+                          <strong className="text-hotel-text font-semibold">
+                            {displayedItems.length}
+                          </strong>{' '}
+                          items (2 × 6 layout)
+                        </>
+                      )}
+                    </p>
+
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={safeMenuPage <= 1}
+                        onClick={() => setMenuPage((p) => Math.max(1, p - 1))}
+                        className="btn-outline-gold py-2 px-3 text-xs disabled:opacity-40"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>{language === 'fr' ? 'Précédent' : 'Previous'}</span>
+                      </button>
+
+                      <div className="flex items-center gap-1 px-1">
+                        {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map((pageNum) => (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => setMenuPage(pageNum)}
+                            className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                              pageNum === safeMenuPage
+                                ? 'bg-hotel-dark text-white shadow-subtle'
+                                : 'bg-white border border-hotel-border text-hotel-secondary hover:text-hotel-text'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={safeMenuPage >= totalMenuPages}
+                        onClick={() => setMenuPage((p) => Math.min(totalMenuPages, p + 1))}
+                        className="btn-outline-gold py-2 px-3 text-xs disabled:opacity-40"
+                      >
+                        <span>{language === 'fr' ? 'Suivant' : 'Next'}</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {activeTab === 'tracking' && (
           <OrderTrackingView
             initialPublicRef={trackingReference}
+            onHistoryCleared={() => setTrackingReference(null)}
             onOpenPaymentForOrder={(order) => {
               const savedToken = getStoredClientOrderToken(order.public_reference) || '';
-              setActivePaymentOrder({
+              setPendingPaymentOrder({
                 id: order.id,
                 public_reference: order.public_reference,
                 total_amount: order.total_amount,
+                delivery_fee: order.delivery_fee,
                 payment_status: order.payment_status,
                 preparation_status: order.preparation_status,
                 raw_token: savedToken,
                 success: true,
               });
+              setIsPaymentModalOpen(true);
             }}
           />
         )}
       </main>
+
+      {/* Floating Bottom Bar: Resume pending payment (if modal was closed temporarily) */}
+      {pendingPaymentOrder && !isPaymentModalOpen && !isCheckoutOpen && !isCartOpen && (
+        <aside
+          role="region"
+          aria-label={language === 'fr' ? 'Paiement en attente de finalisation' : 'Pending payment'}
+          className="fixed bottom-3 inset-x-3 sm:bottom-5 sm:inset-x-auto sm:right-5 sm:max-w-md z-40 animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-hotel-dark text-white border border-[#D8C79A]/40 shadow-elevated flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-stone-300 uppercase tracking-wider font-semibold truncate">
+                  {language === 'fr' ? 'Paiement en attente' : 'Pending payment'}
+                </p>
+                <p className="text-xs sm:text-sm font-bold text-white truncate">
+                  <span className="font-mono text-amber-400">{pendingPaymentOrder.public_reference}</span> • {formatXAF(pendingPaymentOrder.total_amount)}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="btn-gold py-2 px-3.5 text-xs font-bold shrink-0 shadow-sm inline-flex items-center gap-1.5"
+            >
+              <span>{language === 'fr' ? 'Finaliser' : 'Finalize'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile Sticky Bottom Cart Bar when items are in cart and no pending payment banner */}
+      {activeTab === 'menu' && totalItems > 0 && !isCartOpen && !isCheckoutOpen && !pendingPaymentOrder && (
+        <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 px-3 pt-2.5 pb-safe bg-white/95 backdrop-blur-md border-t border-hotel-border shadow-elevated">
+          <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="flex items-center gap-2.5 text-left min-w-0"
+            >
+              <div className="w-9 h-9 rounded-lg bg-hotel-subtle border border-hotel-border flex items-center justify-center relative shrink-0">
+                <ShoppingBag className="w-4 h-4 text-hotel-text" />
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#C59B27] text-stone-950 text-[10px] font-bold flex items-center justify-center">
+                  {totalItems}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-hotel-muted leading-none truncate">{t.cartSubtotal}</p>
+                <p className="text-sm font-bold text-hotel-text mt-0.5 truncate">{formatXAF(subtotal)}</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCheckoutOpen(true)}
+              className="btn-gold py-2.5 px-4 text-xs font-semibold shrink-0"
+            >
+              <span>{t.cartCheckout}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cart Drawer */}
       <CartDrawer
@@ -289,11 +620,18 @@ export function App() {
       />
 
       {/* Payment Modal */}
-      {activePaymentOrder && (
+      {pendingPaymentOrder && isPaymentModalOpen && (
         <PaymentModal
-          orderResult={activePaymentOrder}
-          onClose={() => setActivePaymentOrder(null)}
+          orderResult={pendingPaymentOrder}
+          onClose={() => setIsPaymentModalOpen(false)}
           onPaymentDeclared={handlePaymentDeclared}
+          onCancelOrder={(publicRef) => {
+            setPendingPaymentOrder(null);
+            setIsPaymentModalOpen(false);
+            if (trackingReference === publicRef) {
+              setTrackingReference(null);
+            }
+          }}
         />
       )}
 

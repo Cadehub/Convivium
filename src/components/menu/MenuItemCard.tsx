@@ -1,113 +1,249 @@
 import React, { useState } from 'react';
-import { Plus, Check, Utensils, GlassWater } from 'lucide-react';
-import type { MenuItem } from '../../types';
-import { formatXAF } from '../../lib/formatters';
+import { Plus, Minus, Utensils, Wine, Clock, ZoomIn, SlidersHorizontal } from 'lucide-react';
+import type { MenuItem, MenuComplement, MenuItemVariant, CartComplementSelection } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useCart } from '../../context/CartContext';
+import { formatXAF } from '../../lib/formatters';
+import { ProductCustomizationModal } from './ProductCustomizationModal';
 
 interface MenuItemCardProps {
   item: MenuItem;
+  categoryName?: string;
+  applicableComplements?: MenuComplement[];
 }
 
-export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
+export const MenuItemCard: React.FC<MenuItemCardProps> = ({
+  item,
+  categoryName,
+  applicableComplements = [],
+}) => {
   const { language, t } = useLanguage();
-  const { addItem } = useCart();
-  const [justAdded, setJustAdded] = useState(false);
+  const { items, addItem, updateQuantity } = useCart();
+  const [imageError, setImageError] = useState(false);
+  const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
 
   const displayName = language === 'en' && item.name_en ? item.name_en : item.name_fr;
+  const hasValidImage = Boolean(item.image_url && !imageError);
+  const prepMinutes =
+    item.preparation_time_minutes && item.preparation_time_minutes > 0
+      ? item.preparation_time_minutes
+      : null;
 
-  const handleAdd = () => {
-    if (!item.is_available) return;
-    addItem(item, 1);
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 1200);
+  const activeVariants = (item.variants || []).filter((v) => v.is_active);
+  const hasVariants = activeVariants.length > 0;
+  const hasCustomization = hasVariants || applicableComplements.length > 0;
+
+  // Compute displayed price
+  let displayedPriceText = '';
+  if (hasVariants) {
+    const prices = activeVariants
+      .map((v) => (v.price !== null && v.price !== undefined ? v.price : item.price))
+      .filter((p): p is number => p !== null && p !== undefined);
+
+    const minPrice = prices.length > 0 ? Math.min(...prices) : item.price ?? 0;
+    displayedPriceText = `${t.startingFrom} ${formatXAF(minPrice)}`;
+  } else {
+    displayedPriceText = formatXAF(item.price ?? 0);
+  }
+
+  // Count items of this menu item in cart across any customization
+  const matchingCartItems = items.filter((c) => c.item.id === item.id);
+  const totalQuantityInCart = matchingCartItems.reduce((sum, c) => sum + c.quantity, 0);
+
+  const handleCardClick = () => {
+    setIsCustomizationOpen(true);
+  };
+
+  const handleSimpleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasCustomization) {
+      setIsCustomizationOpen(true);
+    } else {
+      addItem(item, 1);
+    }
+  };
+
+  const handleAddToCart = (
+    targetItem: MenuItem,
+    qty: number,
+    notes: string,
+    variant: MenuItemVariant | null,
+    complements: CartComplementSelection[]
+  ) => {
+    addItem(targetItem, qty, notes, variant, complements);
   };
 
   return (
-    <div className="hotel-card overflow-hidden flex flex-col justify-between group">
-      {/* Product Image / Luxury Fallback */}
-      <div className="relative w-full h-48 bg-hotel-surface overflow-hidden">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={displayName}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-hotel-surface to-hotel-card text-hotel-gold/40">
-            {item.item_type === 'drink' ? (
-              <GlassWater className="w-12 h-12 stroke-[1.2]" />
-            ) : (
-              <Utensils className="w-12 h-12 stroke-[1.2]" />
-            )}
-            <span className="text-[11px] uppercase tracking-widest text-hotel-muted/60 mt-2 font-serif">
-              Convivium Home
+    <>
+      <article
+        onClick={handleCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick();
+          }
+        }}
+        className={`group cursor-pointer bg-white border rounded-xl overflow-hidden transition-all duration-150 flex flex-col justify-between h-full text-left ${
+          !item.is_available
+            ? 'border-hotel-border opacity-60'
+            : totalQuantityInCart > 0
+            ? 'border-[#C59B27] ring-1 ring-[#C59B27]/30 shadow-card'
+            : 'border-hotel-border hover:border-hotel-borderStrong shadow-subtle hover:shadow-card'
+        }`}
+      >
+        {/* Top Card Image */}
+        <div className="relative w-full aspect-4/3 sm:aspect-16/10 bg-hotel-subtle overflow-hidden border-b border-hotel-border/60">
+          {hasValidImage ? (
+            <>
+              <img
+                src={item.image_url!}
+                alt={displayName}
+                onError={() => setImageError(true)}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+              />
+              <span
+                className="absolute bottom-2 right-2 w-7 h-7 rounded-lg bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xs"
+                title={language === 'fr' ? 'Personnaliser et voir' : 'Customize and view'}
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </span>
+            </>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-[#F6F3EC] text-stone-400 p-3">
+              {item.item_type === 'drink' ? (
+                <Wine className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.25] text-[#9A721C]/55" />
+              ) : (
+                <Utensils className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.25] text-[#9A721C]/55" />
+              )}
+              <span className="mt-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-400 font-medium">
+                {item.item_type === 'drink' ? t.drink : t.dish}
+              </span>
+            </div>
+          )}
+
+          {/* Solid Opaque Category pill on top-left */}
+          {categoryName && (
+            <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-md bg-[#FAF6EE] border border-[#D8C79A] text-[10px] font-bold uppercase tracking-wider text-[#8A6214] shadow-xs truncate max-w-[80%]">
+              {categoryName}
             </span>
-          </div>
-        )}
+          )}
 
-        {/* Availability Badge */}
-        {!item.is_available && (
-          <div className="absolute inset-0 bg-hotel-black/75 backdrop-blur-[2px] flex items-center justify-center p-3">
-            <span className="text-xs font-semibold text-red-400 bg-red-950/80 px-3 py-1 rounded-full border border-red-800">
-              {t.unavailable}
+          {/* Preparation Time pill on bottom-left when defined */}
+          {prepMinutes && (
+            <span className="absolute bottom-2 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] text-[10px] font-semibold shadow-xs">
+              <Clock className="w-3 h-3 text-[#C59B27] shrink-0" />
+              <span>{prepMinutes} min</span>
             </span>
-          </div>
-        )}
+          )}
 
-        {/* Item Type Badge (Dish / Drink) */}
-        <div className="absolute top-2.5 left-2.5">
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-hotel-black/70 backdrop-blur-sm text-hotel-gold border border-hotel-gold/30">
-            {item.item_type === 'drink' ? t.drink : t.dish}
-          </span>
+          {/* Total quantity in cart badge */}
+          {totalQuantityInCart > 0 && item.is_available && (
+            <span className="absolute top-2.5 right-2.5 min-w-[24px] h-6 px-1.5 rounded-full bg-[#C59B27] text-stone-950 text-xs font-bold flex items-center justify-center shadow-xs">
+              {totalQuantityInCart}
+            </span>
+          )}
+
+          {/* Availability overlay when unavailable */}
+          {!item.is_available && (
+            <div className="absolute inset-0 bg-stone-900/75 flex items-center justify-center p-2">
+              <span className="px-2.5 py-1 rounded-md bg-stone-900 text-white border border-stone-700 text-[11px] font-medium tracking-wide text-center">
+                {t.unavailable}
+              </span>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Product Information (strictly name and price only, no description, no stock) */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="font-serif text-base sm:text-lg font-semibold text-hotel-text group-hover:text-hotel-gold transition-colors line-clamp-2">
-            {displayName}
-          </h3>
-        </div>
-
-        <div className="mt-4 pt-3 border-t border-hotel-cardBorder/60 flex items-center justify-between">
+        {/* Card Body & Footer Action */}
+        <div className="flex-1 flex flex-col justify-between p-3 sm:p-4">
           <div>
-            <span className="text-xs text-hotel-muted block font-medium">Prix</span>
-            <span className="text-base sm:text-lg font-bold text-hotel-gold font-serif">
-              {formatXAF(item.price)}
-            </span>
+            <div className="flex items-start justify-between gap-1.5">
+              <h3 className="font-serif text-sm sm:text-base md:text-lg font-semibold text-hotel-text leading-snug line-clamp-2">
+                {displayName}
+              </h3>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 mt-1">
+              <p className="text-xs sm:text-sm md:text-base font-bold text-[#9A721C] font-mono">
+                {displayedPriceText}
+              </p>
+              {hasVariants && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200">
+                  {activeVariants.length} {t.variants.toLowerCase()}
+                </span>
+              )}
+            </div>
           </div>
 
-          <button
-            onClick={handleAdd}
-            disabled={!item.is_available}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-              justAdded
-                ? 'bg-green-600 text-white'
-                : item.is_available
-                ? 'bg-hotel-gold text-hotel-black hover:bg-hotel-gold-light active:bg-hotel-gold-dark shadow-sm'
-                : 'bg-hotel-surface text-hotel-muted border border-hotel-cardBorder cursor-not-allowed'
-            }`}
+          {/* Add / Customization Controls */}
+          <div
+            className="pt-3 mt-2.5 border-t border-hotel-border/60"
+            onClick={(e) => e.stopPropagation()}
           >
-            {justAdded ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Ajouté</span>
-              </>
+            {item.is_available ? (
+              hasCustomization ? (
+                <button
+                  type="button"
+                  onClick={handleSimpleAdd}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                  <span className="truncate">{t.customizeDish}</span>
+                </button>
+              ) : totalQuantityInCart > 0 ? (
+                <div className="flex items-center justify-between rounded-lg border border-[#C59B27] bg-[#FBF7EE] p-1">
+                  <button
+                    type="button"
+                    onClick={() => updateQuantity(item.id, totalQuantityInCart - 1)}
+                    aria-label={language === 'fr' ? 'Diminuer la quantité' : 'Decrease quantity'}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-xs sm:text-sm font-bold text-hotel-text">
+                    {totalQuantityInCart}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => addItem(item, 1)}
+                    aria-label={language === 'fr' ? 'Augmenter la quantité' : 'Increase quantity'}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSimpleAdd}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                  <span className="truncate">{t.addToCart}</span>
+                </button>
+              )
             ) : (
-              <>
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>{t.addToCart}</span>
-              </>
+              <div className="w-full py-2 text-center text-xs font-medium text-hotel-muted bg-stone-50 rounded-lg border border-hotel-border/60">
+                {t.unavailable}
+              </div>
             )}
-          </button>
+          </div>
         </div>
-      </div>
-    </div>
+      </article>
+
+      {/* Product Customization & Full View Modal */}
+      {isCustomizationOpen && (
+        <ProductCustomizationModal
+          isOpen={isCustomizationOpen}
+          onClose={() => setIsCustomizationOpen(false)}
+          item={item}
+          categoryName={categoryName}
+          applicableComplements={applicableComplements}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+    </>
   );
 };

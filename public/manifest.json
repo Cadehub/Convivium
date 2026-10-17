@@ -1,0 +1,50 @@
+{
+  "name": "Convivium Home Hotel",
+  "short_name": "Convivium",
+  "description": "Menu gastronomique, suivi de commande en direct et tableaux de bord de gestion — Convivium Home Hotel, Douala",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF8F5",
+  "theme_color": "#FAF8F5",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["food", "lifestyle", "business"],
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Espace Cuisine",
+      "short_name": "Cuisine",
+      "description": "Gestion des commandes en cuisine et vérification des paiements",
+      "url": "/?n=kitchen",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192", "type": "image/jpeg" }]
+    },
+    {
+      "name": "Administration",
+      "short_name": "Admin",
+      "description": "Supervision globale, gestion de la carte et paramètres",
+      "url": "/?n=admin",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192", "type": "image/jpeg" }]
+    },
+    {
+      "name": "Suivi de Commande",
+      "short_name": "Suivi",
+      "description": "Consulter l'état de préparation et de livraison de votre commande",
+      "url": "/?tab=tracking",
+      "icons": [{ "src": "/logo.jpg", "sizes": "192x192", "type": "image/jpeg" }]
+    }
+  ]
+}

@@ -23,11 +23,38 @@ export type MenuItemType = 'dish' | 'drink' | 'other';
 
 export interface MenuCategory {
   id: string;
+  parent_id?: string | null;
   name_fr: string;
   name_en: string | null;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
+  subcategories?: MenuCategory[];
+}
+
+export interface MenuItemVariant {
+  id: string;
+  menu_item_id: string;
+  name_fr: string;
+  name_en: string | null;
+  price: number | null; // in XAF, null if inheriting item base price
+  is_active: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MenuComplement {
+  id: string;
+  name_fr: string;
+  name_en: string | null;
+  price: number; // in XAF (mandatory, can be 0)
+  is_active: boolean;
+  is_all_categories: boolean;
+  sort_order: number;
+  category_ids?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MenuItem {
@@ -36,16 +63,26 @@ export interface MenuItem {
   name_fr: string;
   name_en: string | null;
   item_type: MenuItemType;
-  price: number; // in XAF (integer)
+  price: number | null; // in XAF (integer, optional if item has variants)
+  has_variants?: boolean;
+  variants?: MenuItemVariant[];
   image_url: string | null;
   is_available: boolean;
+  preparation_time_minutes?: number | null;
   sort_order: number;
   created_at?: string;
   updated_at?: string;
 }
 
+export interface CartComplementSelection {
+  complement: MenuComplement;
+  quantity: number;
+}
+
 export interface CartItem {
   item: MenuItem;
+  variant?: MenuItemVariant | null;
+  selectedComplements?: CartComplementSelection[];
   quantity: number;
   notes?: string;
 }
@@ -53,11 +90,21 @@ export interface CartItem {
 export interface OrderItemSnapshot {
   id: string;
   item_name: string;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  selected_complements?: Array<{
+    complement_id: string;
+    name: string;
+    unit_price: number;
+    quantity: number;
+    subtotal: number;
+  }>;
   unit_price: number;
   quantity: number;
   subtotal: number;
   special_notes: string | null;
   image_url?: string | null;
+  preparation_time_minutes?: number | null;
 }
 
 export interface Order {
@@ -70,9 +117,12 @@ export interface Order {
   room_number: string | null;
   table_number: string | null;
   delivery_address: string | null;
+  delivery_schedule_type?: 'instant' | 'scheduled' | null;
+  scheduled_delivery_time?: string | null;
   notes: string | null;
   preparation_status: PreparationStatus;
   payment_status: PaymentStatus;
+  delivery_fee?: number;
   total_amount: number;
   created_at: string;
   updated_at?: string;
@@ -107,6 +157,7 @@ export interface PaymentMethodSetting {
   id: MobileOperator;
   is_active: boolean;
   merchant_code: string;
+  phone_number?: string | null;
   account_name: string;
   ussd_mode: 'full' | 'guided';
   instructions_fr: string | null;
@@ -127,6 +178,7 @@ export interface RestaurantSettings {
     takeaway?: boolean;
     delivery: boolean;
   };
+  delivery_fee?: number | null;
   updated_at?: string;
 }
 
@@ -147,4 +199,8 @@ export interface AuditLogEntry {
   target_id: string | null;
   details: Record<string, unknown> | null;
   created_at: string;
+  profiles?: {
+    full_name?: string;
+    role?: string;
+  } | null;
 }

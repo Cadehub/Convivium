@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import type { Order } from '../../types';
 import { formatXAF } from '../../lib/formatters';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ConfirmPaymentModalProps {
   order: Order | null;
@@ -20,6 +21,7 @@ export const ConfirmPaymentModal: React.FC<ConfirmPaymentModalProps> = ({
   onConfirm,
   isLoading,
 }) => {
+  const { language, t } = useLanguage();
   const [verifiedRef, setVerifiedRef] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,118 +44,126 @@ export const ConfirmPaymentModal: React.FC<ConfirmPaymentModalProps> = ({
       await onConfirm(order.id, verifiedRef.trim(), internalNotes.trim());
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la confirmation du paiement.';
+      const msg = err instanceof Error ? err.message : t.errorGeneral;
       setErrorMessage(msg);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose} />
+    <div className="fixed inset-0 z-50 overflow-y-auto p-0 sm:p-4 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true">
+      <div className="fixed inset-0 bg-stone-900/45 backdrop-blur-[2px]" onClick={onClose} />
 
-      {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg bg-hotel-surface border border-hotel-cardBorder rounded-2xl shadow-2xl p-6 z-10 my-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-hotel-cardBorder">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-hotel-gold" />
-            <h3 className="font-serif text-lg font-bold text-hotel-text">
-              Confirmation Cuisine du Paiement
+      <div className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-white border-t sm:border border-hotel-border rounded-t-2xl sm:rounded-2xl shadow-elevated p-5 sm:p-6 z-10 sm:my-auto pb-safe">
+        <div className="flex items-center justify-between pb-3.5 border-b border-hotel-border">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-emerald-700" />
+            <h3 className="font-serif text-xl font-semibold text-hotel-text">
+              {t.confirmPaymentTitle}
             </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-hotel-muted hover:text-hotel-text hover:bg-hotel-card"
+            className="p-1.5 rounded-lg text-hotel-muted hover:text-hotel-text hover:bg-hotel-subtle"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Order Details Banner */}
-        <div className="mt-4 p-4 rounded-xl bg-hotel-card border border-hotel-cardBorder space-y-1.5 text-xs">
+        <div className="mt-4 p-4 rounded-xl bg-[#FAF8F5] border border-hotel-border space-y-1.5 text-xs">
           <div className="flex justify-between items-center">
-            <span className="text-hotel-muted">Commande :</span>
-            <span className="font-mono font-bold text-hotel-gold text-sm">
+            <span className="text-hotel-secondary">
+              {language === 'fr' ? 'Référence de commande :' : 'Order reference:'}
+            </span>
+            <span className="font-mono font-bold text-hotel-text text-sm">
               {order.public_reference}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-hotel-muted">Client :</span>
+            <span className="text-hotel-secondary">
+              {language === 'fr' ? 'Client :' : 'Customer:'}
+            </span>
             <span className="font-medium text-hotel-text">{order.customer_name}</span>
           </div>
-          <div className="flex justify-between items-center pt-2 border-t border-hotel-cardBorder/60">
-            <span className="text-hotel-muted font-semibold">Montant officiel attendu :</span>
-            <span className="font-serif text-lg font-extrabold text-hotel-gold">
+          <div className="flex justify-between items-center pt-2 border-t border-hotel-border">
+            <span className="text-hotel-secondary font-semibold">
+              {language === 'fr' ? 'Montant attendu :' : 'Expected amount:'}
+            </span>
+            <span className="font-serif text-xl font-bold text-hotel-text">
               {formatXAF(order.total_amount)}
             </span>
           </div>
         </div>
 
         {/* Official Merchant Rule Notice */}
-        <div className="mt-3 p-3 rounded-xl bg-blue-950/40 border border-blue-800/60 text-blue-200 text-xs flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+        <div className="mt-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            Règle de sécurité : Vérifiez la réception réelle de ce montant sur le relevé de votre compte
-            marchand officiel avant de valider. Ni le SMS ni le client ne peuvent valider cette étape à votre place.
+            {t.confirmPaymentWarning}
           </p>
         </div>
 
         {errorMessage && (
-          <div className="mt-3 p-3 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-xs">
+          <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium">
             {errorMessage}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-hotel-text mb-1">
-              Référence vérifiée sur le relevé marchand (facultative mais recommandée)
+            <label className="block text-xs font-semibold text-hotel-text mb-1.5">
+              {t.verifiedRefPrompt}
             </label>
             <input
               type="text"
               value={verifiedRef}
               onChange={(e) => setVerifiedRef(e.target.value)}
-              placeholder="Ex: MP261016.1234.A12345 ou TXN123456"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-xs font-mono focus:outline-none focus:border-hotel-gold"
+              placeholder={t.verifiedRefPlaceholder}
+              className="input-hotel font-mono text-xs"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-hotel-text mb-1">
-              Note interne Cuisine (facultative)
+            <label className="block text-xs font-semibold text-hotel-text mb-1.5">
+              {t.internalNotesPrompt}
             </label>
             <input
               type="text"
               value={internalNotes}
               onChange={(e) => setInternalNotes(e.target.value)}
-              placeholder="Ex: Confirmé sur terminal MTN #12"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-hotel-card border border-hotel-cardBorder text-hotel-text text-xs focus:outline-none focus:border-hotel-gold"
+              placeholder={
+                language === 'fr'
+                  ? 'Ex : Vérifié sur le téléphone marchand Orange'
+                  : 'e.g. Checked on merchant handset'
+              }
+              className="input-hotel text-xs"
             />
           </div>
 
-          <div className="pt-3 border-t border-hotel-cardBorder flex gap-2.5">
+          <div className="pt-3 border-t border-hotel-border flex gap-2.5">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="btn-secondary flex-1 text-xs py-2.5"
+              className="btn-outline-gold flex-1 text-xs py-2.5"
             >
-              Annuler
+              {t.cancel}
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-gold flex-1 text-xs py-2.5 font-bold flex items-center justify-center gap-1.5 shadow-md"
+              className="flex-1 py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 inline-flex items-center justify-center gap-1.5 shadow-subtle transition-colors"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Validation...</span>
+                  <span>{t.saving}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmer la réception</span>
+                  <span>{t.confirmPaymentSubmit}</span>
                 </>
               )}
             </button>

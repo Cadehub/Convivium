@@ -1,68 +1,141 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Backgrounds: Warm Ivory, Pure White & Soft Alabaster Stone */
+  --bg-page: #FAF8F5;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F3EFEA;
+  --bg-hover: #EAE4DC;
+
+  /* Architectural Borders */
+  --border-subtle: #E6E1D8;
+  --border-default: #D5CEC2;
+
+  /* Typography: Deep Obsidian Charcoal & Warm Stone */
+  --text-primary: #181614;
+  --text-secondary: #57534E;
+  --text-muted: #78716C;
+
+  /* Brand Identity: Convivium Medallion Gold & Deep Obsidian */
+  --brand-gold: #9A721C;
+  --brand-gold-bright: #C59B27;
+  --brand-gold-soft: #FBF7EE;
+  --brand-gold-border: #E5D099;
+  --brand-dark: #181614;
+}
+
 @layer base {
+  html {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
-    @apply bg-hotel-black text-hotel-text font-sans antialiased selection:bg-hotel-gold selection:text-hotel-black;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 
-  h1, h2, h3, h4, .font-serif {
-    font-family: 'Playfair Display', Georgia, serif;
+  h1, h2, h3, .font-editorial {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    letter-spacing: -0.01em;
   }
 }
 
-/* Greek Meander Decorative Borders inspired by the Convivium Logo */
-.border-greek-pattern {
-  background-image: repeating-linear-gradient(
-    90deg,
-    #d4af37,
-    #d4af37 6px,
-    transparent 6px,
-    transparent 12px
-  );
-  height: 2px;
-}
-
-/* Glassmorphism luxury dark card */
-.hotel-card {
-  @apply bg-hotel-card border border-hotel-cardBorder rounded-xl shadow-card-dark transition-all duration-200;
-}
-
-.hotel-card:hover {
-  @apply border-hotel-gold-border;
-}
-
-/* Gold Button Styles */
-.btn-gold {
-  @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-hotel-black bg-hotel-gold hover:bg-hotel-gold-light active:bg-hotel-gold-dark transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-hotel-gold/50 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-hotel-text bg-hotel-surface hover:bg-hotel-accent border border-hotel-cardBorder transition-all focus:outline-none focus:ring-2 focus:ring-hotel-cardBorder disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-red-700 hover:bg-red-600 transition-all focus:outline-none focus:ring-2 focus:ring-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-/* Custom Scrollbar */
+/* Custom subtle scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--bg-page);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #272727;
-  border-radius: 4px;
+  background: #D5CEC2;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4af37;
+  background: #9A721C;
+}
+
+/* Hide scrollbar for category pills on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  .hotel-card {
+    @apply bg-white border border-hotel-border rounded-xl shadow-subtle transition-colors duration-150;
+  }
+
+  /* Primary high-contrast brand button */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 bg-hotel-dark hover:bg-stone-800 active:bg-stone-950 text-white font-medium px-5 py-2.5 rounded-lg transition-colors duration-150 shadow-subtle disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Warm gold accent button */
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2 bg-[#9A721C] hover:bg-[#825F15] active:bg-[#6E4F10] text-white font-medium px-5 py-2.5 rounded-lg transition-colors duration-150 shadow-subtle disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary subtle button */
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-hotel-subtle text-hotel-text border border-hotel-borderStrong font-medium px-4 py-2.5 rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Form inputs — text-base on mobile prevents browser auto-zoom on focus */
+  .input-hotel {
+    @apply w-full bg-white border border-hotel-borderStrong rounded-lg px-3.5 py-2.5 text-base sm:text-sm text-hotel-text placeholder-stone-400 focus:outline-none focus:border-[#9A721C] focus:ring-2 focus:ring-[#9A721C]/15 transition-all duration-150;
+  }
+
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  /* Semantic Status Badges — High legibility on light surfaces */
+  .badge-pending {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200;
+  }
+
+  .badge-paid, .badge-success {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200;
+  }
+
+  .badge-rejected, .badge-danger {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-800 border border-red-200;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-sky-50 text-sky-800 border border-sky-200;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-stone-100 text-stone-700 border border-stone-200;
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

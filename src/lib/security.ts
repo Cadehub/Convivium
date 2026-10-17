@@ -43,6 +43,8 @@ export interface StoredClientOrderSummary {
   created_at: string;
   order_mode?: string;
   location_detail?: string;
+  payment_status?: string;
+  preparation_status?: string;
 }
 
 export interface StoredCustomerInfo {
@@ -106,6 +108,22 @@ export function getStoredClientOrders(): StoredClientOrderSummary[] {
 export function getLatestStoredClientOrder(): StoredClientOrderSummary | null {
   const orders = getStoredClientOrders();
   return orders.length > 0 ? orders[0] : null;
+}
+
+/**
+ * Clears the customer's order tracking history on THIS device: the saved orders list,
+ * the stored access tokens and the active tracking reference. Orders themselves are
+ * untouched on the server. A payment still pending finalisation and the remembered
+ * checkout details are intentionally kept (they have their own lifecycle).
+ */
+export function clearClientOrderHistory(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY_CLIENT_ORDERS);
+    localStorage.removeItem(STORAGE_KEY_ORDER_TOKENS);
+    localStorage.removeItem(STORAGE_KEY_TRACKING_REF);
+  } catch (e) {
+    console.error('Failed to clear client order history', e);
+  }
 }
 
 // Customer details remembered for checkout
@@ -174,6 +192,31 @@ export function getActiveTrackingRef(): string | null {
     return localStorage.getItem(STORAGE_KEY_TRACKING_REF);
   } catch {
     return null;
+  }
+}
+
+export function updateStoredClientOrderStatus(
+  publicReference: string,
+  updates: {
+    payment_status?: string;
+    preparation_status?: string;
+  }
+): void {
+  try {
+    const list = getStoredClientOrders();
+    const updated = list.map((o) => {
+      if (o.public_reference === publicReference) {
+        return {
+          ...o,
+          payment_status: updates.payment_status || o.payment_status,
+          preparation_status: updates.preparation_status || o.preparation_status,
+        };
+      }
+      return o;
+    });
+    localStorage.setItem(STORAGE_KEY_CLIENT_ORDERS, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Failed to update client order in localStorage', e);
   }
 }
 

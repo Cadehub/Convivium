@@ -68,13 +68,14 @@ describe('Order Calculation & Business Logic', () => {
         throw new Error(`L'article "${dbItem.name_fr}" n'est plus disponible actuellement.`);
       }
 
-      const subtotal = dbItem.price * line.quantity;
+      const unitPrice = dbItem.price ?? 0;
+      const subtotal = unitPrice * line.quantity;
       calculatedTotal += subtotal;
 
       snapshots.push({
         item_id: dbItem.id,
         item_name: dbItem.name_fr,
-        unit_price: dbItem.price,
+        unit_price: unitPrice,
         quantity: line.quantity,
         subtotal,
       });
