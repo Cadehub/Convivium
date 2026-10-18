@@ -4,6 +4,7 @@ import { Footer } from './components/common/Footer';
 import { CategoryNav } from './components/menu/CategoryNav';
 import { MenuItemCard } from './components/menu/MenuItemCard';
 import { CartDrawer } from './components/cart/CartDrawer';
+import { OrderReviewModal } from './components/cart/OrderReviewModal';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
 import { PaymentModal } from './components/payment/PaymentModal';
 import { OrderTrackingView } from './components/tracking/OrderTrackingView';
@@ -54,7 +55,7 @@ const MENU_ITEMS_PER_PAGE = 12; // 2 columns x 6 rows
 
 export function App() {
   const { user, role, signOut, isLoading: authLoading } = useAuth();
-  const { totalItems, subtotal } = useCart();
+  const { totalItems, subtotal, isOrderReviewOpen, setIsOrderReviewOpen } = useCart();
   const { language, t } = useLanguage();
 
   // Navigation State with localStorage persistence across page refreshes
@@ -552,8 +553,8 @@ export function App() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* 2 Columns x 6 Rows Editorial Menu Cards Grid */}
-                  <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:gap-6">
+                  {/* Responsive Menu Cards Grid: 2 cols on mobile, 3 cols on tablet, 4 cols on desktop */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                     {paginatedMenuItems.map((item) => (
                       <MenuItemCard
                         key={item.id}
@@ -581,7 +582,7 @@ export function App() {
                           <strong className="text-hotel-text font-semibold">
                             {displayedItems.length}
                           </strong>{' '}
-                          articles (format 2 × 6)
+                          articles
                         </>
                       ) : (
                         <>
@@ -597,7 +598,7 @@ export function App() {
                           <strong className="text-hotel-text font-semibold">
                             {displayedItems.length}
                           </strong>{' '}
-                          items (2 × 6 layout)
+                          items
                         </>
                       )}
                     </p>
@@ -736,6 +737,16 @@ export function App() {
         </div>
       )}
 
+      {/* First Addition Order Review Modal */}
+      <OrderReviewModal
+        isOpen={isOrderReviewOpen}
+        onClose={() => setIsOrderReviewOpen(false)}
+        onProceedToCheckout={() => {
+          setIsOrderReviewOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+      />
+
       {/* Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
@@ -754,6 +765,10 @@ export function App() {
         restaurantSettings={restaurantSettings}
         activeServiceLocation={activeServiceLocation}
         onClearServiceLocation={handleClearServiceLocation}
+        onOpenCart={() => {
+          setIsCheckoutOpen(false);
+          setIsCartOpen(true);
+        }}
       />
 
       {/* Payment Modal */}

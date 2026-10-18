@@ -1,5 +1,14 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Utensils } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ArrowRight,
+  Utensils,
+  MessageSquare,
+} from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { formatXAF } from '../../lib/formatters';
@@ -18,6 +27,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const {
     items,
     updateQuantity,
+    updateNotes,
     removeItem,
     clearCart,
     subtotal,
@@ -64,7 +74,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
 
           {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-[#FAF8F5]/60">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 bg-[#FAF8F5]/60">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6">
                 <div className="w-14 h-14 rounded-full bg-hotel-subtle flex items-center justify-center mb-3 text-[#9A721C] border border-hotel-border">
@@ -102,101 +112,117 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 return (
                   <div
                     key={lineKey}
-                    className="p-3.5 rounded-xl bg-white border border-hotel-border shadow-subtle flex items-start gap-3.5"
+                    className="p-3.5 rounded-xl bg-white border border-hotel-border shadow-subtle space-y-3 text-left"
                   >
-                    {/* Item Thumbnail */}
-                    {cartItem.item.image_url ? (
-                      <img
-                        src={cartItem.item.image_url}
-                        alt={name}
-                        className="w-16 h-16 rounded-lg object-cover shrink-0 border border-hotel-border bg-hotel-subtle"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg bg-[#F6F3EC] border border-hotel-border flex items-center justify-center text-[#9A721C]/60 shrink-0">
-                        <Utensils className="w-5 h-5" />
-                      </div>
-                    )}
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-serif text-base font-semibold text-hotel-text leading-snug truncate">
-                            {name}
-                          </h4>
-                          {variantName && (
-                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#9A721C]/10 text-[#9A721C]">
-                              {variantName}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(lineKey)}
-                          className="text-hotel-muted hover:text-red-600 p-1 rounded transition-colors shrink-0"
-                          title={t.delete}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Complements list */}
-                      {cartItem.selectedComplements && cartItem.selectedComplements.length > 0 && (
-                        <div className="mt-1.5 space-y-0.5">
-                          {cartItem.selectedComplements.map((c) => {
-                            const compName =
-                              language === 'en' && c.complement.name_en
-                                ? c.complement.name_en
-                                : c.complement.name_fr;
-                            return (
-                              <div
-                                key={c.complement.id}
-                                className="text-[11px] text-hotel-secondary flex items-center justify-between"
-                              >
-                                <span>
-                                  + {c.quantity > 1 ? `${c.quantity}x ` : ''}
-                                  {compName}
-                                </span>
-                                <span>{formatXAF(c.complement.price * c.quantity)}</span>
-                              </div>
-                            );
-                          })}
+                    <div className="flex items-start gap-3.5">
+                      {/* Item Thumbnail */}
+                      {cartItem.item.image_url ? (
+                        <img
+                          src={cartItem.item.image_url}
+                          alt={name}
+                          className="w-16 h-16 rounded-lg object-cover shrink-0 border border-hotel-border bg-hotel-subtle"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-[#F6F3EC] border border-hotel-border flex items-center justify-center text-[#9A721C]/60 shrink-0">
+                          <Utensils className="w-5 h-5" />
                         </div>
                       )}
 
-                      <p className="text-xs font-medium text-hotel-secondary mt-1">
-                        {formatXAF(unitPrice)} {cartItem.quantity > 1 ? `/ unité` : ''}
-                      </p>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center justify-between mt-3">
-                        <div className="inline-flex items-center gap-1 bg-hotel-subtle rounded-lg border border-hotel-border p-0.5">
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-serif text-base font-semibold text-hotel-text leading-snug truncate">
+                              {name}
+                            </h4>
+                            {variantName && (
+                              <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#9A721C]/10 text-[#9A721C]">
+                                {variantName}
+                              </span>
+                            )}
+                          </div>
                           <button
                             type="button"
-                            onClick={() =>
-                              updateQuantity(lineKey, cartItem.quantity - 1)
-                            }
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                            onClick={() => removeItem(lineKey)}
+                            className="text-hotel-muted hover:text-red-600 p-1 rounded transition-colors shrink-0"
+                            title={t.delete}
                           >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="w-7 text-center text-xs font-bold text-hotel-text">
-                            {cartItem.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateQuantity(lineKey, cartItem.quantity + 1)
-                            }
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
 
-                        <span className="text-sm font-bold text-hotel-text">
-                          {formatXAF(lineTotal)}
-                        </span>
+                        {/* Complements list */}
+                        {cartItem.selectedComplements && cartItem.selectedComplements.length > 0 && (
+                          <div className="mt-1.5 space-y-0.5">
+                            {cartItem.selectedComplements.map((c) => {
+                              const compName =
+                                language === 'en' && c.complement.name_en
+                                  ? c.complement.name_en
+                                  : c.complement.name_fr;
+                              return (
+                                <div
+                                  key={c.complement.id}
+                                  className="text-[11px] text-hotel-secondary flex items-center justify-between"
+                                >
+                                  <span>
+                                    + {c.quantity > 1 ? `${c.quantity}x ` : ''}
+                                    {compName}
+                                  </span>
+                                  <span>{formatXAF(c.complement.price * c.quantity)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <p className="text-xs font-medium text-hotel-secondary mt-1">
+                          {formatXAF(unitPrice)} {cartItem.quantity > 1 ? `/ unité` : ''}
+                        </p>
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center justify-between mt-2.5">
+                          <div className="inline-flex items-center gap-1 bg-hotel-subtle rounded-lg border border-hotel-border p-0.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuantity(lineKey, cartItem.quantity - 1)
+                              }
+                              className="w-7 h-7 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-7 text-center text-xs font-bold text-hotel-text">
+                              {cartItem.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuantity(lineKey, cartItem.quantity + 1)
+                              }
+                              className="w-7 h-7 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <span className="text-sm font-bold text-hotel-text font-mono">
+                            {formatXAF(lineTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Per-Dish Special Instructions Input */}
+                    <div className="pt-2 border-t border-stone-100">
+                      <div className="relative flex items-center">
+                        <MessageSquare className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2.5 shrink-0 pointer-events-none" />
+                        <textarea
+                          rows={2}
+                          value={cartItem.notes || ''}
+                          onChange={(e) => updateNotes(lineKey, e.target.value)}
+                          placeholder={t.dishSpecialNotesPlaceholder}
+                          className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-hotel-border focus:border-[#C59B27] focus:ring-1 focus:ring-[#C59B27] bg-[#FAF8F5]/80 placeholder:text-stone-400 text-hotel-text resize-none"
+                        />
                       </div>
                     </div>
                   </div>
@@ -210,7 +236,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div className="p-4 sm:p-6 pb-safe border-t border-hotel-border bg-white space-y-3.5">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-medium text-hotel-secondary">{t.cartSubtotal}</span>
-                <span className="font-serif text-2xl font-bold text-hotel-text">
+                <span className="font-serif text-2xl font-bold text-hotel-text font-mono">
                   {formatXAF(subtotal)}
                 </span>
               </div>
@@ -218,7 +244,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <button
                 type="button"
                 onClick={onProceedToCheckout}
-                className="w-full btn-gold py-3 text-sm font-semibold"
+                className="w-full btn-gold py-3 text-sm font-semibold shadow-subtle"
               >
                 <span>{t.cartCheckout}</span>
                 <ArrowRight className="w-4 h-4" />

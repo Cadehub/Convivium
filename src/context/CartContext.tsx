@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { CartItem, MenuItem, MenuItemVariant, CartComplementSelection } from '../types';
+import type { CartItem, MenuItem, MenuItemVariant, MenuComplement, CartComplementSelection } from '../types';
 
 export function getCartLineKey(
   itemId: string,
@@ -44,12 +44,26 @@ interface CartContextType {
   removeItem: (cartKeyOrItemId: string) => void;
   updateQuantity: (cartKeyOrItemId: string, quantity: number) => void;
   updateNotes: (cartKeyOrItemId: string, notes: string) => void;
+  updateItemComplementQuantity: (
+    cartKey: string,
+    complementId: string,
+    quantity: number
+  ) => void;
+  addComplementToCartItem: (
+    cartKey: string,
+    complement: MenuComplement,
+    quantity?: number
+  ) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
   getItemLineKey: (item: CartItem) => string;
   getItemUnitPrice: (item: CartItem) => number;
   getItemLineTotal: (item: CartItem) => number;
+  isOrderReviewOpen: boolean;
+  setIsOrderReviewOpen: (open: boolean) => void;
+  hasShownFirstOrderModal: boolean;
+  setHasShownFirstOrderModal: (shown: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -57,6 +71,8 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'convivium_cart_v2';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isOrderReviewOpen, setIsOrderReviewOpen] = useState(false);
+  const [hasShownFirstOrderModal, setHasShownFirstOrderModal] = useState(false);
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -94,6 +110,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     if (!item.is_available) return;
 
+    // Auto-open order review modal only on the very first addition
+    if (!hasShownFirstOrderModal) {
+      setIsOrderReviewOpen(true);
+      setHasShownFirstOrderModal(true);
+    }
+
     const targetKey = getCartLineKey(item.id, variant?.id || null, complements);
 
     setItems((prev) => {
@@ -123,11 +145,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeItem = (cartKeyOrItemId: string) => {
-    setItems((prev) =>
-      prev.filter(
+    setItems((prev) => {
+      const remaining = prev.filter(
         (i) => getItemLineKey(i) !== cartKeyOrItemId && i.item.id !== cartKeyOrItemId
-      )
-    );
+      );
+      if (remaining.length === 0) {
+        setHasShownFirstOrderModal(false);
+      }
+      return remaining;
+    });
   };
 
   const updateQuantity = (cartKeyOrItemId: string, quantity: number) => {
@@ -157,8 +183,70 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const updateItemComplementQuantity = (
+    cartKey: string,
+    complementId: string,
+    quantity: number
+  ) => {
+    setItems((prev) =>
+      prev.map((i) => {
+        if (getItemLineKey(i) !== cartKey && i.item.id !== cartKey) return i;
+        const currentComps = i.selectedComplements || [];
+        let updatedComps: CartComplementSelection[];
+        if (quantity <= 0) {
+          updatedComps = currentComps.filter((c) => c.complement.id !== complementId);
+        } else {
+          updatedComps = currentComps.map((c) =>
+            c.complement.id === complementId
+              ? { ...c, quantity: Math.min(20, Math.max(1, quantity)) }
+              : c
+          );
+        }
+        return {
+          ...i,
+          selectedComplements: updatedComps,
+        };
+      })
+    );
+  };
+
+  const addComplementToCartItem = (
+    cartKey: string,
+    complement: MenuComplement,
+    quantity: number = 1
+  ) => {
+    setItems((prev) =>
+      prev.map((i) => {
+        if (getItemLineKey(i) !== cartKey && i.item.id !== cartKey) return i;
+        const currentComps = i.selectedComplements || [];
+        const existingCompIndex = currentComps.findIndex(
+          (c) => c.complement.id === complement.id
+        );
+        let updatedComps: CartComplementSelection[];
+        if (existingCompIndex > -1) {
+          updatedComps = currentComps.map((c, idx) =>
+            idx === existingCompIndex
+              ? { ...c, quantity: Math.min(20, c.quantity + quantity) }
+              : c
+          );
+        } else {
+          updatedComps = [
+            ...currentComps,
+            { complement, quantity: Math.min(20, Math.max(1, quantity)) },
+          ];
+        }
+        return {
+          ...i,
+          selectedComplements: updatedComps,
+        };
+      })
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
+    setHasShownFirstOrderModal(false);
+    setIsOrderReviewOpen(false);
   };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -172,12 +260,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeItem,
         updateQuantity,
         updateNotes,
+        updateItemComplementQuantity,
+        addComplementToCartItem,
         clearCart,
         totalItems,
         subtotal,
         getItemLineKey,
         getItemUnitPrice: getCartItemUnitPrice,
         getItemLineTotal: getCartItemLineTotal,
+        isOrderReviewOpen,
+        setIsOrderReviewOpen,
+        hasShownFirstOrderModal,
+        setHasShownFirstOrderModal,
       }}
     >
       {children}

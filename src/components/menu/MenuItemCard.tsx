@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Utensils, Wine, Clock, ZoomIn } from 'lucide-react';
+import { Plus, Utensils, Wine, Clock, ZoomIn } from 'lucide-react';
 import type { MenuItem, MenuComplement, MenuItemVariant, CartComplementSelection } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useCart } from '../../context/CartContext';
@@ -18,7 +18,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
   applicableComplements = [],
 }) => {
   const { language, t } = useLanguage();
-  const { items, addItem, updateQuantity } = useCart();
+  const { items, addItem } = useCart();
   const [imageError, setImageError] = useState(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
 
@@ -192,47 +192,14 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {item.is_available ? (
-              hasCustomization ? (
-                <button
-                  type="button"
-                  onClick={handleSimpleAdd}
-                  className="w-full inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
-                >
-                  <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
-                  <span className="truncate">{t.addToCart}</span>
-                </button>
-              ) : totalQuantityInCart > 0 ? (
-                <div className="flex items-center justify-between rounded-lg border border-[#C59B27] bg-[#FBF7EE] p-0.5 sm:p-1">
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.id, totalQuantityInCart - 1)}
-                    aria-label={language === 'fr' ? 'Diminuer la quantité' : 'Decrease quantity'}
-                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
-                  >
-                    <Minus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  </button>
-                  <span className="text-[11px] sm:text-sm font-bold text-hotel-text px-1">
-                    {totalQuantityInCart}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => addItem(item, 1)}
-                    aria-label={language === 'fr' ? 'Augmenter la quantité' : 'Increase quantity'}
-                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
-                  >
-                    <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSimpleAdd}
-                  className="w-full inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
-                >
-                  <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C59B27] shrink-0" />
-                  <span className="truncate">{t.addToCart}</span>
-                </button>
-              )
+              <button
+                type="button"
+                onClick={handleSimpleAdd}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-hotel-dark text-white hover:bg-stone-800 active:bg-stone-950 transition-colors shadow-subtle min-w-0"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
+                <span className="truncate">{t.addToCart}</span>
+              </button>
             ) : (
               <div className="w-full py-2 text-center text-xs font-medium text-hotel-muted bg-stone-50 rounded-lg border border-hotel-border/60">
                 {t.unavailable}

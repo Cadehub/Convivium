@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, AlertCircle, Loader2, Utensils, Bed, Truck, Zap, Clock, QrCode, CheckCircle2 } from 'lucide-react';
+import {
+  X,
+  ArrowRight,
+  AlertCircle,
+  Loader2,
+  Utensils,
+  Bed,
+  Truck,
+  Zap,
+  Clock,
+  QrCode,
+  CheckCircle2,
+  ShoppingBag,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Edit3,
+} from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ordersService, type CreateOrderResult } from '../../services/orders.service';
@@ -18,6 +35,7 @@ interface CheckoutModalProps {
   restaurantSettings?: RestaurantSettings | null;
   activeServiceLocation?: ResolvedServiceLocation | null;
   onClearServiceLocation?: () => void;
+  onOpenCart?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -27,8 +45,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   restaurantSettings,
   activeServiceLocation,
   onClearServiceLocation,
+  onOpenCart,
 }) => {
-  const { items, subtotal, totalItems, clearCart } = useCart();
+  const {
+    items,
+    subtotal,
+    totalItems,
+    clearCart,
+    getItemLineKey,
+    getItemLineTotal,
+  } = useCart();
   const { language, t } = useLanguage();
 
   const savedInfo = getSavedCustomerInfo();
@@ -49,7 +75,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     'instant'
   );
   const [scheduledDeliveryTime, setScheduledDeliveryTime] = useState<string>('');
-  const [notes, setNotes] = useState('');
+  const [isCartExpanded, setIsCartExpanded] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -130,7 +156,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           orderMode === 'delivery' && deliveryScheduleType === 'scheduled'
             ? scheduledDeliveryTime.trim()
             : null,
-        notes: notes.trim(),
+        notes: '',
         items: items.map((i) => ({
           item_id: i.item.id,
           variant_id: i.variant?.id || null,
@@ -236,58 +262,148 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
         )}
 
-        {/* Order Summary Strip — Strictly hides delivery fee unless defined by Admin AND delivery mode is selected */}
-        <div className="mt-4 px-4 py-3 rounded-xl bg-hotel-subtle/70 border border-hotel-border space-y-1.5">
-          {appliedDeliveryFee > 0 ? (
-            <>
-              <div className="flex items-center justify-between text-xs text-hotel-secondary">
-                <span>
-                  {t.cartSubtotal} ({totalItems}{' '}
+        {/* Interactive Cart Consultation & Review Section */}
+        <div className="mt-4 rounded-xl border border-hotel-border bg-[#FAF8F5]/80 overflow-hidden shadow-2xs">
+          {/* Header of the cart review */}
+          <div className="px-4 py-3 flex items-center justify-between gap-3 bg-white border-b border-hotel-border">
+            <button
+              type="button"
+              onClick={() => setIsCartExpanded((prev) => !prev)}
+              className="flex items-center gap-2 text-left min-w-0 flex-1 hover:opacity-80 transition-opacity"
+            >
+              <div className="w-8 h-8 rounded-lg bg-[#FAF6EE] text-[#9A721C] border border-[#D8C79A] flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-xs sm:text-sm text-hotel-text">
+                    {t.reviewCart}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hotel-subtle text-hotel-secondary border border-hotel-border">
+                    {totalItems}
+                  </span>
+                </div>
+                <p className="text-[11px] text-hotel-muted truncate">
                   {language === 'fr'
-                    ? totalItems > 1
-                      ? 'articles'
-                      : 'article'
-                    : totalItems > 1
-                    ? 'items'
-                    : 'item'}
-                  )
-                </span>
-                <span className="font-mono font-medium text-hotel-text">
-                  {formatXAF(subtotal)}
-                </span>
+                    ? 'Vérifiez vos plats et instructions avant de commander'
+                    : 'Check your dishes and instructions before ordering'}
+                </p>
               </div>
-              <div className="flex items-center justify-between text-xs text-hotel-secondary">
-                <span>{t.deliveryFee}</span>
-                <span className="font-mono font-medium text-[#9A721C]">
-                  +{formatXAF(appliedDeliveryFee)}
-                </span>
-              </div>
-              <div className="pt-1.5 border-t border-hotel-border flex items-baseline justify-between">
-                <span className="text-xs font-semibold text-hotel-text uppercase tracking-wider">
-                  {t.cartTotal}
-                </span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-hotel-text">
-                  {formatXAF(finalTotal)}
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-hotel-secondary">
-                {totalItems}{' '}
-                {language === 'fr'
-                  ? totalItems > 1
-                    ? 'articles sélectionnés'
-                    : 'article sélectionné'
-                  : totalItems > 1
-                  ? 'items selected'
-                  : 'item selected'}
-              </span>
-              <span className="font-serif text-lg font-bold text-hotel-text">
-                {formatXAF(subtotal)}
-              </span>
+              {isCartExpanded ? (
+                <ChevronUp className="w-4 h-4 text-stone-400 shrink-0 ml-1" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-stone-400 shrink-0 ml-1" />
+              )}
+            </button>
+
+            {/* Quick Button to return to Cart */}
+            <button
+              type="button"
+              onClick={onOpenCart || onClose}
+              className="btn-outline-gold text-xs py-1.5 px-3 shrink-0 inline-flex items-center gap-1.5"
+            >
+              <Edit3 className="w-3 h-3 text-[#9A721C]" />
+              <span>{t.editCart}</span>
+            </button>
+          </div>
+
+          {/* Itemized Cart List when expanded */}
+          {isCartExpanded && (
+            <div className="p-3 sm:p-4 space-y-2.5 max-h-56 overflow-y-auto border-b border-hotel-border bg-[#FAF8F5]/50 divide-y divide-hotel-border/60">
+              {items.map((cartItem) => {
+                const lineKey = getItemLineKey(cartItem);
+                const name =
+                  language === 'en' && cartItem.item.name_en
+                    ? cartItem.item.name_en
+                    : cartItem.item.name_fr;
+                const variantName = cartItem.variant
+                  ? language === 'en' && cartItem.variant.name_en
+                    ? cartItem.variant.name_en
+                    : cartItem.variant.name_fr
+                  : null;
+                const lineTotal = getItemLineTotal(cartItem);
+
+                return (
+                  <div key={lineKey} className="pt-2.5 first:pt-0 space-y-1 text-left">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        {cartItem.item.image_url ? (
+                          <img
+                            src={cartItem.item.image_url}
+                            alt={name}
+                            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-hotel-border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center shrink-0 text-[#9A721C]">
+                            <Utensils className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs text-hotel-text truncate">
+                            <span className="font-bold text-[#9A721C] mr-1">
+                              {cartItem.quantity}×
+                            </span>
+                            {name}
+                          </p>
+                          {variantName && (
+                            <span className="text-[10px] text-stone-600 bg-stone-100 px-1.5 py-0.2 rounded border border-stone-200">
+                              {variantName}
+                            </span>
+                          )}
+                          {cartItem.selectedComplements && cartItem.selectedComplements.length > 0 && (
+                            <p className="text-[10px] text-hotel-secondary truncate mt-0.5">
+                              +{' '}
+                              {cartItem.selectedComplements
+                                .map((c) =>
+                                  language === 'en' && c.complement.name_en
+                                    ? c.complement.name_en
+                                    : c.complement.name_fr
+                                )
+                                .join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <span className="font-mono text-xs font-bold text-hotel-text shrink-0">
+                        {formatXAF(lineTotal)}
+                      </span>
+                    </div>
+
+                    {/* Per-Dish Special Instruction in Cart Review */}
+                    {cartItem.notes && cartItem.notes.trim().length > 0 && (
+                      <div className="ml-12 px-2 py-1 rounded-md bg-amber-50 border border-amber-200/80 text-[11px] text-amber-950 flex items-start gap-1.5">
+                        <MessageSquare className="w-3 h-3 text-[#9A721C] shrink-0 mt-0.5" />
+                        <span className="italic leading-snug">« {cartItem.notes.trim()} »</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
+
+          {/* Pricing Summary Row */}
+          <div className="px-4 py-2.5 space-y-1 text-xs">
+            {appliedDeliveryFee > 0 && (
+              <>
+                <div className="flex items-center justify-between text-hotel-secondary">
+                  <span>{t.cartSubtotal}</span>
+                  <span className="font-mono">{formatXAF(subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-hotel-secondary">
+                  <span>{t.deliveryFee}</span>
+                  <span className="font-mono text-[#9A721C]">+{formatXAF(appliedDeliveryFee)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex items-baseline justify-between pt-1 font-semibold text-hotel-text">
+              <span className="uppercase text-[11px] tracking-wider">{t.cartTotal}</span>
+              <span className="font-serif text-base sm:text-lg font-bold font-mono">
+                {formatXAF(finalTotal)}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -550,20 +666,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Kitchen Notes / Special instructions */}
-          <div>
-            <label className="block text-xs font-semibold text-hotel-text mb-1.5">
-              {t.specialNotes}{' '}
-              <span className="font-normal text-hotel-muted">({t.optional})</span>
-            </label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t.specialNotesPlaceholder}
-              className="w-full text-xs sm:text-sm p-3 rounded-xl border border-hotel-border focus:border-[#9A721C] focus:ring-1 focus:ring-[#9A721C] outline-hidden leading-relaxed resize-y bg-white"
-            />
-          </div>
 
           {/* Submit & Cancel Buttons */}
           <div className="pt-2 flex flex-col sm:flex-row-reverse items-center gap-2.5">
