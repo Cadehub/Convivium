@@ -48,7 +48,7 @@ export interface StoredClientOrderSummary {
 }
 
 export interface StoredCustomerInfo {
-  customerName: string;
+  customerName?: string;
   customerPhone?: string;
   orderMode?: string;
   locationDetail?: string;

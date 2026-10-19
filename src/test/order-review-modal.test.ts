@@ -38,12 +38,12 @@ describe('First-Add Order Review Modal and Cart Logic', () => {
   };
 
   it('provides dedicated translations for order review title and action buttons in French and English', () => {
-    expect(translations.fr.orderReviewTitle).toBe('Votre commande');
-    expect(translations.fr.continueToOrder).toBe('Continuer');
-    expect(translations.fr.continueShoppingInMenu).toBe('Continuer l’achat dans le menu');
+    expect(translations.fr.orderReviewTitle).toBe('Consulter mon panier');
+    expect(translations.fr.continueToOrder).toBe('Passer la commande');
+    expect(translations.fr.continueShoppingInMenu).toBe('Continuer dans le menu');
 
-    expect(translations.en.orderReviewTitle).toBe('Your Order');
-    expect(translations.en.continueToOrder).toBe('Continue');
+    expect(translations.en.orderReviewTitle).toBe('Review my cart');
+    expect(translations.en.continueToOrder).toBe('Proceed to checkout');
     expect(translations.en.continueShoppingInMenu).toBe('Continue shopping in menu');
   });
 

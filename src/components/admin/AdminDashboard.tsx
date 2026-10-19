@@ -35,6 +35,8 @@ import {
   Clock,
   ZoomIn,
   QrCode,
+  BookOpen,
+  Archive,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -46,9 +48,10 @@ import { uploadImageToImgBB } from '../../lib/imgbb';
 import { PaymentVerificationCard } from '../kitchen/PaymentVerificationCard';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { StaffNotificationButton } from '../common/NotificationSettings';
-import { ComplementManager } from '../menu/ComplementManager';
 import { ItemVariantManager } from '../menu/ItemVariantManager';
 import { ServiceLocationsManager } from './ServiceLocationsManager';
+import { AdminUserGuide } from './AdminUserGuide';
+import { AdminHistoryView } from './AdminHistoryView';
 import { supabase } from '../../lib/supabase';
 import { subscribeToLiveSyncEvents } from '../../lib/realtime';
 import type {
@@ -65,7 +68,16 @@ import type {
 } from '../../types';
 import { formatXAF, formatDateTime } from '../../lib/formatters';
 
-type AdminSection = 'orders' | 'menu' | 'payments' | 'staff' | 'modes' | 'locations' | 'audit';
+type AdminSection =
+  | 'orders'
+  | 'history'
+  | 'menu'
+  | 'payments'
+  | 'staff'
+  | 'modes'
+  | 'locations'
+  | 'audit'
+  | 'guide';
 
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const { profile } = useAuth();
@@ -118,7 +130,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [adminMenuPage, setAdminMenuPage] = useState<number>(1);
-  const [menuSubTab, setMenuSubTab] = useState<'items' | 'categories' | 'complements'>('items');
+  const [menuSubTab, setMenuSubTab] = useState<'items' | 'categories'>('items');
   const [previewMenuItem, setPreviewMenuItem] = useState<MenuItem | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<MenuCategory | null>(null);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
@@ -937,7 +949,15 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     (o) => o.payment_status === 'payment_declared'
   ).length;
 
-  const filteredOrders = orders.filter((o) => {
+  // Active vs Completed Orders separation
+  const activeOrders = orders.filter(
+    (o) => o.preparation_status !== 'completed' && o.preparation_status !== 'cancelled'
+  );
+  const completedOrders = orders.filter(
+    (o) => o.preparation_status === 'completed' || o.preparation_status === 'cancelled'
+  );
+
+  const filteredOrders = activeOrders.filter((o) => {
     if (orderPaymentFilter !== 'all' && o.payment_status !== orderPaymentFilter) {
       return false;
     }
@@ -1025,9 +1045,15 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
   }[] = [
     {
       id: 'orders',
-      label: language === 'fr' ? 'Suivi des commandes' : 'Orders Tracking',
+      label: language === 'fr' ? 'Commandes actives' : 'Active Orders',
       icon: ClipboardList,
-      badge: orders.length,
+      badge: activeOrders.length,
+    },
+    {
+      id: 'history',
+      label: language === 'fr' ? 'Historique des commandes' : 'Order History',
+      icon: Archive,
+      badge: completedOrders.length,
     },
     {
       id: 'menu',
@@ -1060,6 +1086,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       id: 'audit',
       label: language === 'fr' ? 'Journal d’audit' : 'Audit Trail',
       icon: History,
+    },
+    {
+      id: 'guide',
+      label: language === 'fr' ? 'Mode d’emploi' : 'User Guide',
+      icon: BookOpen,
     },
   ];
 
@@ -1640,6 +1671,16 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
             </div>
           )}
 
+          {/* SECTION: ORDER HISTORY (SERVED & COMPLETED ORDERS) */}
+          {activeTab === 'history' && (
+            <AdminHistoryView
+              orders={orders}
+              onInspectOrder={(o) => setInspectingOrder(o)}
+              onExportCsv={handleExportOrdersCsv}
+              onPrintReport={handlePrintOrdersReport}
+            />
+          )}
+
           {/* SECTION 2: MENU & CATEGORIES */}
           {activeTab === 'menu' && (
             <div className="space-y-6">
@@ -1683,20 +1724,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                     <FolderTree className="w-3.5 h-3.5" />
                     <span>
                       {t.kitchenTabCategories} ({categories.length})
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMenuSubTab('complements')}
-                    className={`px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap ${
-                      menuSubTab === 'complements'
-                        ? 'bg-hotel-dark text-white font-semibold'
-                        : 'bg-[#FAF8F5] text-hotel-secondary border border-hotel-border hover:text-hotel-text'
-                    }`}
-                  >
-                    <Sliders className="w-3.5 h-3.5" />
-                    <span>
-                      {t.complements}
                     </span>
                   </button>
                 </div>
@@ -2200,15 +2227,6 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                     );
                   })}
                 </div>
-              )}
-
-              {/* Subtab: Complements */}
-              {menuSubTab === 'complements' && (
-                <ComplementManager
-                  categories={categories}
-                  onRefresh={refreshMenuSilent}
-                  showToast={showToast}
-                />
               )}
             </div>
           )}
@@ -3576,6 +3594,9 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
               showToast={showToast}
             />
           )}
+
+          {/* SECTION 8: USER GUIDE (MODE D'EMPLOI ADMIN) */}
+          {activeTab === 'guide' && <AdminUserGuide />}
         </div>
       </main>
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, Plus, Minus, Clock, Utensils, Wine, Check, ShoppingBag } from 'lucide-react';
-import type { MenuItem, MenuItemVariant, MenuComplement, CartComplementSelection } from '../../types';
+import type { MenuItem, MenuItemVariant } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { formatXAF } from '../../lib/formatters';
 
@@ -9,13 +9,11 @@ interface ProductCustomizationModalProps {
   onClose: () => void;
   item: MenuItem;
   categoryName?: string;
-  applicableComplements: MenuComplement[];
   onAddToCart: (
     item: MenuItem,
     quantity: number,
     notes: string,
-    variant: MenuItemVariant | null,
-    complements: CartComplementSelection[]
+    variant: MenuItemVariant | null
   ) => void;
 }
 
@@ -24,7 +22,6 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
   onClose,
   item,
   categoryName,
-  applicableComplements,
   onAddToCart,
 }) => {
   const { language, t } = useLanguage();
@@ -38,8 +35,6 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
     return activeVariants.length > 0 ? activeVariants[0].id : null;
   });
 
-  // Complements quantity map: complementId -> quantity (0 if not selected)
-  const [complementsQty, setComplementsQty] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState<number>(1);
   const [notes, setNotes] = useState<string>('');
   const [imageError, setImageError] = useState<boolean>(false);
@@ -52,6 +47,13 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
       ? item.preparation_time_minutes
       : null;
 
+  // Description is only truthy if non-empty trimmed text exists
+  const itemDescription = (
+    language === 'en'
+      ? item.description_en || item.description_fr
+      : item.description_fr || item.description_en
+  )?.trim() || null;
+
   const currentVariant = activeVariants.find((v) => v.id === selectedVariantId) || null;
 
   // Calculate base/variant unit price
@@ -60,37 +62,15 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
       ? currentVariant.price
       : item.price ?? 0;
 
-  // Calculate complements subtotal per unit
-  const complementsPerUnit = applicableComplements.reduce((sum, comp) => {
-    const qty = complementsQty[comp.id] || 0;
-    return sum + (comp.price || 0) * qty;
-  }, 0);
-
-  const unitPrice = basePrice + complementsPerUnit;
+  const unitPrice = basePrice;
   const lineTotal = unitPrice * quantity;
 
   const hasVariants = activeVariants.length > 0;
   const canSubmit = !hasVariants || currentVariant !== null || item.price !== null;
 
-  const handleUpdateCompQty = (compId: string, delta: number) => {
-    setComplementsQty((prev) => {
-      const current = prev[compId] || 0;
-      const next = Math.max(0, Math.min(10, current + delta));
-      return { ...prev, [compId]: next };
-    });
-  };
-
   const handleConfirm = () => {
     if (!canSubmit) return;
-
-    const selectedComplementsList: CartComplementSelection[] = applicableComplements
-      .filter((c) => (complementsQty[c.id] || 0) > 0)
-      .map((c) => ({
-        complement: c,
-        quantity: complementsQty[c.id] || 1,
-      }));
-
-    onAddToCart(item, quantity, notes.trim(), currentVariant, selectedComplementsList);
+    onAddToCart(item, quantity, notes.trim(), currentVariant);
     onClose();
   };
 
@@ -102,7 +82,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-white rounded-2xl border border-hotel-border shadow-elevated overflow-hidden my-auto"
+        className="relative w-full max-w-xl sm:max-w-2xl bg-white rounded-2xl border border-hotel-border shadow-elevated overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
@@ -110,13 +90,13 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
           type="button"
           onClick={onClose}
           aria-label={t.close}
-          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-stone-900/80 text-white border border-stone-700 flex items-center justify-center hover:bg-stone-900 transition-colors shadow-sm"
+          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-stone-900/80 text-white border border-stone-700 flex items-center justify-center hover:bg-stone-900 transition-colors shadow-sm cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Top Image Banner */}
-        <div className="relative w-full aspect-16/9 sm:aspect-2/1 bg-hotel-subtle overflow-hidden border-b border-hotel-border">
+        {/* Top Large Image Banner */}
+        <div className="relative w-full aspect-16/10 sm:aspect-16/9 md:aspect-2/1 max-h-72 sm:max-h-80 md:max-h-96 bg-hotel-subtle overflow-hidden border-b border-hotel-border">
           {item.image_url && !imageError ? (
             <img
               src={item.image_url}
@@ -125,12 +105,15 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-[#F6F3EC] text-stone-400">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-[#F6F3EC] text-stone-400 p-6 min-h-[180px]">
               {item.item_type === 'drink' ? (
-                <Wine className="w-10 h-10 stroke-[1.2] text-[#9A721C]/50" />
+                <Wine className="w-12 h-12 stroke-[1.25] text-[#9A721C]/50" />
               ) : (
-                <Utensils className="w-10 h-10 stroke-[1.2] text-[#9A721C]/50" />
+                <Utensils className="w-12 h-12 stroke-[1.25] text-[#9A721C]/50" />
               )}
+              <span className="mt-2 text-xs uppercase tracking-wider text-stone-400 font-medium">
+                {item.item_type === 'drink' ? t.drink : t.dish}
+              </span>
             </div>
           )}
 
@@ -141,57 +124,58 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
           )}
 
           {prepMinutes && (
-            <span className="absolute bottom-2.5 left-3 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] text-[11px] font-semibold shadow-xs">
-              <Clock className="w-3 h-3 text-[#C59B27] shrink-0" />
+            <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#1C1613] text-[#F5E6B8] border border-[#C59B27] text-[10px] font-semibold shadow-xs">
+              <Clock className="w-3 h-3 text-[#C59B27]" />
               <span>{prepMinutes} min</span>
             </span>
           )}
         </div>
 
-        {/* Modal Scrollable Content */}
-        <div className="p-4 sm:p-5 max-h-[60vh] overflow-y-auto space-y-5">
-          {/* Title, Base Price & Optional Dish Description */}
+        {/* Modal Scrollable Body */}
+        <div className="p-4 sm:p-6 space-y-4 max-h-[55vh] overflow-y-auto">
+          {/* Title & Price */}
           <div>
-            <h3 className="font-serif text-lg sm:text-xl font-bold text-hotel-text">
-              {displayName}
-            </h3>
-            <p className="text-sm font-semibold text-[#9A721C] mt-1 font-mono">
-              {formatXAF(unitPrice)}
-            </p>
-            {/* Dish Description: Only shown if entered, hidden otherwise */}
-            {Boolean(language === 'en' ? (item.description_en || item.description_fr) : (item.description_fr || item.description_en)) && (
-              <p className="mt-2 text-xs sm:text-sm text-hotel-secondary leading-relaxed bg-[#FAF8F5] p-3 rounded-xl border border-hotel-border/60">
-                {language === 'en'
-                  ? (item.description_en || item.description_fr)
-                  : (item.description_fr || item.description_en)}
-              </p>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-hotel-text leading-snug">
+                {displayName}
+              </h2>
+              <span className="text-lg sm:text-xl font-bold text-[#9A721C] shrink-0 font-mono">
+                {formatXAF(unitPrice)}
+              </span>
+            </div>
+
+            {/* Description: ONLY rendered when a real non-empty description exists */}
+            {itemDescription && (
+              <div className="mt-3 text-xs sm:text-sm text-stone-700 leading-relaxed bg-[#FAF8F5] p-3 sm:p-3.5 rounded-xl border border-hotel-border/70 shadow-2xs">
+                {itemDescription}
+              </div>
             )}
           </div>
 
-          {/* 1. Variants Selection (if item has variants) */}
+          {/* 1. Variants Selection (ONLY rendered if product has variants) */}
           {hasVariants && (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
+            <div className="space-y-2 pt-2 border-t border-hotel-border">
+              <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-hotel-text">
                   {t.variantsTitle}
                 </span>
-                <span className="text-[11px] font-medium text-[#9A721C]">
-                  {t.required}
-                </span>
+                <p className="text-[11px] text-hotel-secondary mt-0.5">
+                  {t.selectVariant}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {activeVariants.map((v) => {
+                  const isSelected = selectedVariantId === v.id;
                   const vName = language === 'en' && v.name_en ? v.name_en : v.name_fr;
                   const vPrice = v.price !== null && v.price !== undefined ? v.price : item.price ?? 0;
-                  const isSelected = selectedVariantId === v.id;
 
                   return (
                     <button
                       key={v.id}
                       type="button"
                       onClick={() => setSelectedVariantId(v.id)}
-                      className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#9A721C] bg-[#FAF6EE] shadow-xs'
                           : 'border-hotel-border bg-white hover:border-hotel-borderStrong'
@@ -221,66 +205,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
             </div>
           )}
 
-          {/* 2. Complements Selection (ONLY rendered if product has applicable complements) */}
-          {applicableComplements.length > 0 && (
-            <div className="space-y-2.5 pt-2 border-t border-hotel-border">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-hotel-text">
-                  {t.complements}
-                </span>
-                <p className="text-[11px] text-hotel-secondary mt-0.5">
-                  {t.complementsSubtitle}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                {applicableComplements.map((comp) => {
-                  const compName = language === 'en' && comp.name_en ? comp.name_en : comp.name_fr;
-                  const currentQty = complementsQty[comp.id] || 0;
-                  const priceLabel = comp.price > 0 ? `+${formatXAF(comp.price)}` : t.free;
-
-                  return (
-                    <div
-                      key={comp.id}
-                      className="p-2.5 rounded-xl border border-hotel-border bg-[#FAF8F5]/60 flex items-center justify-between gap-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-hotel-text truncate">
-                          {compName}
-                        </p>
-                        <p className="text-[11px] font-medium text-[#9A721C]">
-                          {priceLabel}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 bg-white border border-hotel-border rounded-lg p-0.5 shrink-0">
-                        <button
-                          type="button"
-                          disabled={currentQty === 0}
-                          onClick={() => handleUpdateCompQty(comp.id, -1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-hotel-muted hover:text-hotel-text disabled:opacity-30 transition-colors"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-5 text-center text-xs font-bold text-hotel-text">
-                          {currentQty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateCompQty(comp.id, 1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-hotel-text hover:bg-hotel-subtle transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 3. Special Notes / Instructions (Spacious multi-line textarea) */}
+          {/* 2. Special Notes / Instructions (Spacious multi-line textarea) */}
           <div className="space-y-1.5 pt-2 border-t border-hotel-border">
             <label className="text-xs font-semibold text-hotel-text block">
               {t.specialNotes} <span className="font-normal text-hotel-secondary">({t.optional})</span>
@@ -289,7 +214,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder={language === 'fr' ? 'Ex: Cuisson à point, sauce à part, sans piment...' : 'e.g. Medium well, sauce on the side, no chili...'}
+              placeholder={language === 'fr' ? 'Ex: Cuisson à point, sans piment, bien chaud...' : 'e.g. Medium well, no chili, extra hot...'}
               className="w-full text-xs sm:text-sm p-3 rounded-xl border border-hotel-border focus:border-[#9A721C] focus:ring-1 focus:ring-[#9A721C] outline-hidden leading-relaxed resize-y bg-white"
               maxLength={250}
             />
@@ -307,7 +232,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
               type="button"
               disabled={quantity <= 1}
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-hotel-text hover:bg-white disabled:opacity-40 transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-hotel-text hover:bg-white disabled:opacity-40 transition-colors cursor-pointer"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
@@ -317,7 +242,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.min(50, q + 1))}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-hotel-text hover:bg-white transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-hotel-text hover:bg-white transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -328,7 +253,7 @@ export const ProductCustomizationModal: React.FC<ProductCustomizationModalProps>
             type="button"
             disabled={!canSubmit}
             onClick={handleConfirm}
-            className="flex-1 btn-gold py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 shadow-subtle disabled:opacity-50"
+            className="flex-1 btn-gold py-2.5 px-4 text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 shadow-subtle disabled:opacity-50 cursor-pointer"
           >
             <span className="inline-flex items-center gap-1.5 truncate">
               <ShoppingBag className="w-4 h-4 shrink-0" />

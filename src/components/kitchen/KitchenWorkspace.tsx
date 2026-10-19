@@ -20,7 +20,8 @@ import {
   ChevronRight,
   X,
   ZoomIn,
-  Sliders,
+  Archive,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -35,8 +36,9 @@ import { RejectPaymentModal } from './RejectPaymentModal';
 import { ReviewPaymentModal } from './ReviewPaymentModal';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { StaffNotificationButton } from '../common/NotificationSettings';
-import { ComplementManager } from '../menu/ComplementManager';
 import { ItemVariantManager } from '../menu/ItemVariantManager';
+import { KitchenHistoryView } from './KitchenHistoryView';
+import { KitchenUserGuide } from './KitchenUserGuide';
 import type {
   Order,
   MenuItem,
@@ -53,7 +55,9 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
   const { profile } = useAuth();
   const { language, setLanguage, t } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'categories' | 'complements'>('orders');
+  const [activeTab, setActiveTab] = useState<
+    'orders' | 'history' | 'menu' | 'categories' | 'guide'
+  >('orders');
 
   // Orders State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -68,7 +72,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
 
   // Filters for Orders
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
-  const [operationalFilter, setOperationalFilter] = useState<'all' | 'cooking' | 'ready' | 'completed'>('all');
+  const [operationalFilter, setOperationalFilter] = useState<'all' | 'cooking' | 'ready'>('all');
 
   // Modals for Payment Verification & Order Fulfillment
   const [paymentVerifyModalOrder, setPaymentVerifyModalOrder] = useState<Order | null>(null);
@@ -653,6 +657,14 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
     (o) => o.payment_status === 'payment_declared'
   ).length;
 
+  const activeOrdersCount = orders.filter(
+    (o) => o.preparation_status !== 'completed' && o.preparation_status !== 'cancelled'
+  ).length;
+
+  const completedOrdersCount = orders.filter(
+    (o) => o.preparation_status === 'completed' || o.preparation_status === 'cancelled'
+  ).length;
+
   return (
     <div className="min-h-screen bg-hotel-bg text-hotel-text">
       {statusFeedback && (
@@ -752,13 +764,28 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
             >
               <Clock className="w-4 h-4" />
               <span>
-                {t.kitchenTabOrders} ({orders.length})
+                {t.kitchenTabOrders} ({activeOrdersCount})
               </span>
               {pendingDeclarationsCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[11px] font-bold bg-amber-400 text-stone-950">
                   {pendingDeclarationsCount}
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors ${
+                activeTab === 'history'
+                  ? 'bg-hotel-dark text-white shadow-subtle'
+                  : 'bg-white text-hotel-secondary border border-hotel-border hover:text-hotel-text'
+              }`}
+            >
+              <Archive className="w-4 h-4" />
+              <span>
+                {t.kitchenTabHistory} ({completedOrdersCount})
+              </span>
             </button>
 
             <button
@@ -793,16 +820,16 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
 
             <button
               type="button"
-              onClick={() => setActiveTab('complements')}
+              onClick={() => setActiveTab('guide')}
               className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors ${
-                activeTab === 'complements'
+                activeTab === 'guide'
                   ? 'bg-hotel-dark text-white shadow-subtle'
-                  : 'bg-white text-hotel-secondary border border-hotel-border hover:text-hotel-text'
+                  : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 font-semibold'
               }`}
             >
-              <Sliders className="w-4 h-4" />
+              <BookOpen className="w-4 h-4 text-[#9A721C]" />
               <span>
-                {t.complements}
+                {t.kitchenTabGuide}
               </span>
             </button>
           </div>
@@ -883,32 +910,31 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
               };
 
               // ÉTAPE A: Nouvelles commandes à vérifier
-              // All orders that need payment verification (not yet paid and not cancelled)
+              // All orders that need payment verification (not yet paid and not completed/cancelled)
               const ordersToVerify = orders.filter(
                 (o) =>
                   o.payment_status !== 'paid' &&
                   o.preparation_status !== 'cancelled' &&
+                  o.preparation_status !== 'completed' &&
                   matchesQuery(o)
               );
 
-              // ÉTAPE B: Commandes validées, prêtes à être traitées
-              // All orders where payment has been verified as 'paid'
-              const allPaidOrders = orders.filter(
-                (o) => o.payment_status === 'paid' && matchesQuery(o)
+              // ÉTAPE B: Commandes validées, prêtes à être traitées (actives uniquement)
+              // Strictly excludes completed and cancelled orders
+              const activePaidOrders = orders.filter(
+                (o) =>
+                  o.payment_status === 'paid' &&
+                  o.preparation_status !== 'completed' &&
+                  o.preparation_status !== 'cancelled' &&
+                  matchesQuery(o)
               );
 
-              const operationalOrders = allPaidOrders.filter((o) => {
+              const operationalOrders = activePaidOrders.filter((o) => {
                 if (operationalFilter === 'cooking') {
                   return ['new', 'accepted', 'preparing'].includes(o.preparation_status);
                 }
                 if (operationalFilter === 'ready') {
                   return o.preparation_status === 'ready';
-                }
-                if (operationalFilter === 'completed') {
-                  return (
-                    o.preparation_status === 'completed' ||
-                    o.preparation_status === 'cancelled'
-                  );
                 }
                 return true;
               });
@@ -967,7 +993,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                           {t.kitchenOperationalOrdersTitle}
                         </h3>
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-950 border border-emerald-300 shadow-2xs">
-                          {allPaidOrders.length}
+                          {activePaidOrders.length}
                         </span>
                       </div>
 
@@ -982,7 +1008,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                               : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
                           }`}
                         >
-                          {t.all} ({allPaidOrders.length})
+                          {t.all} ({activePaidOrders.length})
                         </button>
 
                         <button
@@ -996,7 +1022,7 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                         >
                           {language === 'fr' ? 'En préparation' : 'Cooking'} (
                           {
-                            allPaidOrders.filter((o) =>
+                            activePaidOrders.filter((o) =>
                               ['new', 'accepted', 'preparing'].includes(
                                 o.preparation_status
                               )
@@ -1016,28 +1042,8 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
                         >
                           {language === 'fr' ? 'Prêtes' : 'Ready'} (
                           {
-                            allPaidOrders.filter(
+                            activePaidOrders.filter(
                               (o) => o.preparation_status === 'ready'
-                            ).length
-                          }
-                          )
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOperationalFilter('completed')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                            operationalFilter === 'completed'
-                              ? 'bg-stone-700 text-white'
-                              : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                          }`}
-                        >
-                          {language === 'fr' ? 'Clôturées' : 'Completed'} (
-                          {
-                            allPaidOrders.filter(
-                              (o) =>
-                                o.preparation_status === 'completed' ||
-                                o.preparation_status === 'cancelled'
                             ).length
                           }
                           )
@@ -1076,6 +1082,17 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
             })()}
           </div>
         )}
+
+        {/* Tab: Order History (Served & Completed Orders) */}
+        {activeTab === 'history' && (
+          <KitchenHistoryView
+            orders={orders}
+            onViewOrder={(order) => setDetailsModalOrder(order)}
+          />
+        )}
+
+        {/* Tab: User Guide (Mode d'emploi) */}
+        {activeTab === 'guide' && <KitchenUserGuide />}
 
         {/* Tab 2: Menu Catalog Management (Dishes & Drinks) */}
         {activeTab === 'menu' && (
@@ -1608,14 +1625,6 @@ export const KitchenWorkspace: React.FC<{ onLogout: () => void }> = ({ onLogout 
           </div>
         )}
 
-        {/* Tab 4: Complements Management */}
-        {activeTab === 'complements' && (
-          <ComplementManager
-            categories={categories}
-            onRefresh={loadMenu}
-            showToast={showToast}
-          />
-        )}
       </div>
 
       {/* PAYMENT VERIFICATION MODAL (EXCLUSIVELY FOR PAYMENT VERIFICATION) */}

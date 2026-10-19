@@ -25,7 +25,7 @@ import {
   parseNotificationDeepLink,
   stripNotificationParams,
 } from './lib/push';
-import type { MenuCategory, MenuItem, MenuComplement, RestaurantSettings, ResolvedServiceLocation } from './types';
+import type { MenuCategory, MenuItem, RestaurantSettings, ResolvedServiceLocation } from './types';
 import type { CreateOrderResult } from './services/orders.service';
 import {
   getStoredClientOrderToken,
@@ -186,7 +186,6 @@ export function App() {
   // Data State
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [complements, setComplements] = useState<MenuComplement[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [menuPage, setMenuPage] = useState<number>(1);
   const [restaurantSettings, setRestaurantSettings] = useState<RestaurantSettings | null>(null);
@@ -199,15 +198,13 @@ export function App() {
       setIsLoadingMenu(true);
     }
     try {
-      const [cats, items, comps, settings] = await Promise.all([
+      const [cats, items, settings] = await Promise.all([
         menuService.getPublicCategories().catch(() => []),
         menuService.getPublicMenuItems().catch(() => []),
-        menuService.getPublicComplements().catch(() => []),
         settingsService.getRestaurantSettings().catch(() => null),
       ]);
       setCategories(cats);
       setMenuItems(items);
-      setComplements(comps);
       setRestaurantSettings(settings);
       hasLoadedMenuRef.current = true;
     } catch (e) {
@@ -240,20 +237,6 @@ export function App() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'menu_categories' },
-        () => {
-          loadPublicData(true);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'menu_complements' },
-        () => {
-          loadPublicData(true);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'menu_complement_categories' },
         () => {
           loadPublicData(true);
         }
@@ -338,21 +321,6 @@ export function App() {
     categoryNameMap[c.id] = language === 'en' && c.name_en ? c.name_en : c.name_fr;
   });
 
-  // Helper to determine applicable complements for a given product (with parent category inheritance)
-  const getApplicableComplementsForItem = (item: MenuItem): MenuComplement[] => {
-    if (!item.category_id) {
-      return complements.filter((c) => c.is_all_categories);
-    }
-    const itemCategory = categories.find((c) => c.id === item.category_id);
-    const parentId = itemCategory?.parent_id;
-
-    return complements.filter((c) => {
-      if (c.is_all_categories) return true;
-      const catIds = c.category_ids || [];
-      return catIds.includes(item.category_id!) || (parentId ? catIds.includes(parentId) : false);
-    });
-  };
-
   // Handle Order Created Callback
   const handleOrderCreated = (res: CreateOrderResult) => {
     setIsCheckoutOpen(false);
@@ -392,7 +360,7 @@ export function App() {
           setActiveTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenCart={() => setIsCartOpen(true)}
+        onOpenCart={() => setIsOrderReviewOpen(true)}
         onOpenStaffLogin={() => setIsStaffLoginOpen(true)}
         pendingPaymentOrder={pendingPaymentOrder}
         onOpenPendingPayment={() => setIsPaymentModalOpen(true)}
@@ -560,7 +528,6 @@ export function App() {
                         key={item.id}
                         item={item}
                         categoryName={item.category_id ? categoryNameMap[item.category_id] : undefined}
-                        applicableComplements={getApplicableComplementsForItem(item)}
                       />
                     ))}
                   </div>
@@ -704,37 +671,42 @@ export function App() {
         </aside>
       )}
 
-      {/* Mobile Sticky Bottom Cart Bar when items are in cart and no pending payment banner */}
-      {activeTab === 'menu' && totalItems > 0 && !isCartOpen && !isCheckoutOpen && !pendingPaymentOrder && (
-        <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 px-3 pt-2.5 pb-safe bg-white/95 backdrop-blur-md border-t border-hotel-border shadow-elevated">
+      {/* Sticky Bottom Cart Bar when items are in cart and no pending payment banner */}
+      {activeTab === 'menu' && totalItems > 0 && !isCartOpen && !isOrderReviewOpen && !isCheckoutOpen && !pendingPaymentOrder && (
+        <aside
+          role="region"
+          aria-label={t.reviewCart}
+          className="fixed bottom-0 inset-x-0 sm:bottom-6 sm:inset-x-auto sm:right-6 sm:max-w-md sm:rounded-2xl sm:border sm:border-hotel-border sm:shadow-elevated z-30 px-3.5 py-2.5 sm:px-4 sm:py-3 bg-white/95 backdrop-blur-md border-t border-hotel-border shadow-elevated transition-all animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
           <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
             <button
               type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2.5 text-left min-w-0"
+              onClick={() => setIsOrderReviewOpen(true)}
+              className="flex items-center gap-2.5 sm:gap-3 text-left min-w-0 group"
+              title={t.reviewCart}
             >
-              <div className="w-9 h-9 rounded-lg bg-hotel-subtle border border-hotel-border flex items-center justify-center relative shrink-0">
-                <ShoppingBag className="w-4 h-4 text-hotel-text" />
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#C59B27] text-stone-950 text-[10px] font-bold flex items-center justify-center">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#FAF6EE] border border-[#E5D099] flex items-center justify-center relative shrink-0 group-hover:scale-105 transition-transform">
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-[#9A721C]" />
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] sm:min-w-[20px] h-[18px] sm:h-5 px-1 rounded-full bg-[#C59B27] text-stone-950 text-[10px] sm:text-xs font-bold flex items-center justify-center shadow-2xs">
                   {totalItems}
                 </span>
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] text-hotel-muted leading-none truncate">{t.cartSubtotal}</p>
-                <p className="text-sm font-bold text-hotel-text mt-0.5 truncate">{formatXAF(subtotal)}</p>
+                <p className="text-sm sm:text-base font-bold text-hotel-text mt-0.5 truncate font-mono">{formatXAF(subtotal)}</p>
               </div>
             </button>
 
             <button
               type="button"
-              onClick={() => setIsCheckoutOpen(true)}
-              className="btn-gold py-2.5 px-4 text-xs font-semibold shrink-0"
+              onClick={() => setIsOrderReviewOpen(true)}
+              className="btn-gold py-2.5 px-4 sm:px-5 text-xs sm:text-sm font-bold shrink-0 inline-flex items-center gap-1.5 shadow-sm"
             >
-              <span>{t.cartCheckout}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>{t.reviewCart}</span>
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#9A721C]" />
             </button>
           </div>
-        </div>
+        </aside>
       )}
 
       {/* First Addition Order Review Modal */}
@@ -767,7 +739,7 @@ export function App() {
         onClearServiceLocation={handleClearServiceLocation}
         onOpenCart={() => {
           setIsCheckoutOpen(false);
-          setIsCartOpen(true);
+          setIsOrderReviewOpen(true);
         }}
       />
 

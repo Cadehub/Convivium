@@ -16,6 +16,7 @@ import {
   ChevronUp,
   MessageSquare,
   Edit3,
+  Phone,
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -65,7 +66,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
     return (savedInfo?.orderMode as OrderMode) || 'dine_in';
   });
-  const [customerName, setCustomerName] = useState(savedInfo?.customerName || '');
   const [customerPhone, setCustomerPhone] = useState(savedInfo?.customerPhone || '');
   const [locationDetail, setLocationDetail] = useState(() => {
     if (activeServiceLocation) return activeServiceLocation.label;
@@ -109,11 +109,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!customerName.trim()) {
-      setErrorMessage(t.errorRequiredFields);
-      return;
-    }
-
     if (orderMode === 'room_service' && !locationDetail.trim()) {
       setErrorMessage(`${t.roomNumber} (${t.required.toLowerCase()})`);
       return;
@@ -122,6 +117,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (orderMode === 'delivery' && !locationDetail.trim()) {
       setErrorMessage(`${t.deliveryAddress} (${t.required.toLowerCase()})`);
       return;
+    }
+
+    if (orderMode === 'delivery') {
+      const trimmedPhone = customerPhone.trim();
+      if (!trimmedPhone) {
+        setErrorMessage(t.errorDeliveryPhoneRequired);
+        return;
+      }
+      const digitsOnly = trimmedPhone.replace(/\D/g, '');
+      if (digitsOnly.length < 8) {
+        setErrorMessage(t.errorInvalidPhone);
+        return;
+      }
     }
 
     if (
@@ -146,7 +154,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     try {
       const orderPayload = {
-        customerName: customerName.trim(),
+        customerName: 'Client',
         customerPhone: customerPhone.trim() || undefined,
         orderMode,
         locationDetail: locationDetail.trim(),
@@ -173,7 +181,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       // Persist customer profile for future visits
       saveCustomerInfo({
-        customerName: customerName.trim(),
         customerPhone: customerPhone.trim() || undefined,
         orderMode,
         locationDetail: locationDetail.trim(),
@@ -183,7 +190,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       saveStoredClientOrder({
         public_reference: result.public_reference,
         raw_token: result.raw_token,
-        customer_name: customerName.trim(),
+        customer_name: 'Client',
         total_amount: result.total_amount,
         created_at: new Date().toISOString(),
         order_mode: orderMode,
@@ -556,6 +563,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 />
               </div>
 
+              {/* Delivery Phone Number (Mandatory) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-hotel-text">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-[#9A721C]" />
+                      <span>{t.customerPhone}</span>
+                    </span>{' '}
+                    <span className="text-red-600">*</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
+                    {language === 'fr' ? 'Obligatoire' : 'Required'}
+                  </span>
+                </div>
+                <input
+                  type="tel"
+                  required
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder={t.customerPhonePlaceholder}
+                  className="input-hotel bg-white font-mono"
+                />
+                <p className="text-[11px] text-hotel-muted mt-1">
+                  {language === 'fr'
+                    ? 'Le livreur vous contactera sur ce numéro à son arrivée.'
+                    : 'The delivery driver will call you on this number upon arrival.'}
+                </p>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-hotel-text mb-2">
                   {language === 'fr' ? 'Horaire de livraison souhaité' : 'Preferred delivery timing'}
@@ -635,22 +671,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           )}
 
-          {/* Customer Name & Phone */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-hotel-text mb-1.5">
-                {t.customerName} <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder={t.customerNamePlaceholder}
-                className="input-hotel"
-              />
-            </div>
-
+          {/* Customer Phone (Optional for dine-in / room service) */}
+          {orderMode !== 'delivery' && (
             <div>
               <label className="block text-xs font-semibold text-hotel-text mb-1.5">
                 {t.customerPhone}{' '}
@@ -664,7 +686,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 className="input-hotel"
               />
             </div>
-          </div>
+          )}
 
 
           {/* Submit & Cancel Buttons */}

@@ -110,12 +110,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     if (!item.is_available) return;
 
-    // Auto-open order review modal only on the very first addition
-    if (!hasShownFirstOrderModal) {
-      setIsOrderReviewOpen(true);
-      setHasShownFirstOrderModal(true);
-    }
-
     const targetKey = getCartLineKey(item.id, variant?.id || null, complements);
 
     setItems((prev) => {

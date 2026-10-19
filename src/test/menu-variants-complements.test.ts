@@ -406,5 +406,78 @@ describe('Menu Extensions — Variants, Complements, and Subcategories', () => {
       expect(shouldRenderComplementsSection).toBe(false);
     });
   });
+
+  describe('6. Simplified Menu Architecture: Sides & Sauces as Standalone Categories', () => {
+    it('models complements and sauces as standard categories and menu items', () => {
+      const sidesCategory: MenuCategory = {
+        id: 'cat-sides',
+        name_fr: 'Compléments',
+        name_en: 'Sides & Complements',
+        sort_order: 6,
+        is_active: true,
+      };
+
+      const saucesCategory: MenuCategory = {
+        id: 'cat-sauces',
+        name_fr: 'Sauces',
+        name_en: 'Sauces',
+        sort_order: 7,
+        is_active: true,
+      };
+
+      const mainDish: MenuItem = {
+        id: 'dish-1',
+        name_fr: 'Poulet Braisé Entier',
+        name_en: 'Whole Grilled Chicken',
+        price: 8000,
+        category_id: 'cat-poulet',
+        item_type: 'dish',
+        image_url: null,
+        is_available: true,
+        sort_order: 1,
+      };
+
+      const plantains: MenuItem = {
+        id: 'comp-1',
+        name_fr: 'Plantains frit et vapeur',
+        name_en: 'Fried & Steamed Plantains',
+        price: 1000,
+        category_id: sidesCategory.id,
+        item_type: 'dish',
+        image_url: null,
+        is_available: true,
+        sort_order: 1,
+      };
+
+      const piment: MenuItem = {
+        id: 'sauce-1',
+        name_fr: 'Sauce Piment Maison',
+        name_en: 'House Hot Pepper Sauce',
+        price: 500,
+        category_id: saucesCategory.id,
+        item_type: 'dish',
+        image_url: null,
+        is_available: true,
+        sort_order: 1,
+      };
+
+      // Customer orders 1 main dish, 2 portions of plantains, and 1 hot sauce directly
+      const cart = [
+        { item: mainDish, quantity: 1, notes: 'Bien cuit' },
+        { item: plantains, quantity: 2, notes: '' },
+        { item: piment, quantity: 1, notes: 'À part' },
+      ];
+
+      const subtotal = cart.reduce((sum, line) => sum + (line.item.price ?? 0) * line.quantity, 0);
+
+      // 8000 + (1000 * 2) + 500 = 10500 XAF
+      expect(subtotal).toBe(10500);
+      expect(cart).toHaveLength(3);
+      expect(cart[0].item.category_id).toBe('cat-poulet');
+      expect(cart[1].item.category_id).toBe('cat-sides');
+      expect(cart[2].item.category_id).toBe('cat-sauces');
+    });
+  });
 });
+
 

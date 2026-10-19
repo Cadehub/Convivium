@@ -12,7 +12,7 @@ import type {
 } from '../types';
 
 export interface CreateOrderPayload {
-  customerName: string;
+  customerName?: string;
   customerPhone?: string;
   orderMode: OrderMode;
   locationDetail?: string; // room number, table number, or delivery address
@@ -66,7 +66,7 @@ export const ordersService = {
     }));
 
     const { data, error } = await supabase.rpc('create_order_with_schedule', {
-      p_customer_name: payload.customerName.trim(),
+      p_customer_name: (payload.customerName || 'Client').trim(),
       p_customer_phone: payload.customerPhone ? payload.customerPhone.trim() : '',
       p_order_mode: payload.orderMode,
       p_location_detail: payload.locationDetail ? payload.locationDetail.trim() : '',
